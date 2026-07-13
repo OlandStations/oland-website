@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ */
+/* O'land brand theme — Tailwind CSS v4 tokens (no JS config).        */
+/* These generate utilities like bg-blue, text-coral, border-steel.   */
+/* ------------------------------------------------------------------ */
+@theme {
+  --color-coral: #eb684b; /* primary CTA / accents */
+  --color-teal: #6bbbae;
+  --color-blue: #0099cc; /* primary brand, hero, quote form bg */
+  --color-steel: #3776a3; /* headings, captions, form nav */
+  --color-sand: #ebdac6;
+  --color-offwhite: #f2f2f1; /* section bands */
+  --color-nearwhite: #fcfcfd;
+  --color-ink: #0c3a4f; /* body text, footer bg */
+
+  /* Manrope is loaded via next/font and exposed as --font-manrope. */
+  --font-manrope: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Base element defaults ------------------------------------------------ */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-manrope);
+  color: var(--color-ink);
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Clip horizontal overflow from the reveal slide-in transforms without
+     turning <body> into a scroll container (preserves the sticky header). */
+  overflow-x: clip;
+}
+
+/* Visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 3px solid var(--color-coral);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Utility: thin uppercase eyebrow label used across sections. */
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  font-size: 0.8125rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll-reveal animations (driven by useScrollReveal + <Reveal />).  */
+/* The 'revealed' class is added by an Intersection Observer.          */
+/* ------------------------------------------------------------------ */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-32px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+.reveal-left.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+.reveal-right {
+  opacity: 0;
+  transform: translateX(32px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+.reveal-right.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-left,
+  .reveal-right {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
