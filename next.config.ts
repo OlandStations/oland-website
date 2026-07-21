@@ -1,10 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Real images will be swapped in for the <Placeholder> component later.
-  // When that happens, add the Squarespace/own CDN host here for next/image.
-  // images: { remotePatterns: [{ protocol: "https", hostname: "..." }] },
-  images: { formats: ["image/webp", "image/avif"] },
+  // Static export for Cloudflare Pages hosting (no Next.js server at runtime).
+  output: "export",
+  // next/image requires the Image Optimization API, which needs a server.
+  // Cloudflare Pages serves the /out directory as static files, so images
+  // are served unoptimized (as-is) instead.
+  images: { unoptimized: true },
 };
 
 export default nextConfig;
