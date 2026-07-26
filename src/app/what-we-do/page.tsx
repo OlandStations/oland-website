@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Placeholder from "@/components/Placeholder";
 import CtaButton from "@/components/CtaButton";
+import PartnersCarousel from "@/components/PartnersCarousel";
 
 export const metadata: Metadata = {
   title: "About Us — O'land water stations for events",
@@ -8,27 +10,45 @@ export const metadata: Metadata = {
     "Join our mission as passionate environmental advocates and plastic pollution warriors. Since 2019, we've led initiatives to protect oceans and reduce plastic waste. Serving major festivals in Canada and the USA, we provide fresh water and cut carbon footprints with our refill stations. Our goal: a world without single-use plastic.",
 };
 
-const team = [
-  { name: "Rachel Labbe-Bellas", role: "FOUNDER & CEO", alt: "Rachel Labbe-Bellas, Founder of O'land" },
+type TeamMember = { name: string; role: string; alt: string; img?: string };
+
+const team: TeamMember[] = [
+  {
+    name: "Rachel Labbe-Bellas",
+    role: "FOUNDER & CEO",
+    alt: "Rachel Labbe-Bellas, O'land team member",
+    img: "/images/about/who-we-are/team/rachel.jpg",
+  },
   {
     name: "Francis De Courval",
     role: "CHIEF OPERATIONS OFFICER",
-    alt: "Francis de Courval, CTO & Product Specialist of O'land",
+    alt: "Francis De Courval, O'land team member",
+    img: "/images/about/who-we-are/team/Francis.jpg",
   },
-  { name: "Maria Munarini", role: "MARKETING DIRECTOR", alt: "Maria Regina, Director of Marketing O'land" },
-  { name: "Amélia Morgan", role: "Production & Operations Manager", alt: "Amelia Morgan" },
-  { name: "Marc Decelles", role: "PRODUCT DESIGN", alt: "Marc Descelles, industrial designer at O'land" },
-  { name: "Daniel", role: "OPERATIONS ASSISTANCE", alt: "Daniel - Assembly & Product Specialist at O'land" },
-];
-
-const partners = [
-  "Aqua Action",
-  "Green Sports Alliance",
-  "Evenko",
-  "Osheaga",
-  "RBC Canadian Open",
-  "Palais des congrès",
-  "Whitecap",
+  {
+    name: "Maria Munarini",
+    role: "MARKETING DIRECTOR",
+    alt: "Maria Munarini, O'land team member",
+    img: "/images/about/who-we-are/team/Maria.jpg",
+  },
+  {
+    name: "Amélia Morgan",
+    role: "Production & Operations Manager",
+    alt: "Amélia Morgan, O'land team member",
+    img: "/images/about/who-we-are/team/Amelia.jpg",
+  },
+  {
+    name: "Marc Decelles",
+    role: "PRODUCT DESIGN",
+    alt: "Marc Decelles, O'land team member",
+    img: "/images/about/who-we-are/team/MarcDecelles.jpg",
+  },
+  {
+    name: "Daniel",
+    role: "OPERATIONS ASSISTANCE",
+    alt: "Daniel, O'land team member",
+    img: "/images/about/who-we-are/team/Daniel.jpg",
+  },
 ];
 
 export default function WhatWeDoPage() {
@@ -40,11 +60,15 @@ export default function WhatWeDoPage() {
           We are a Benefit Corporation of passionate plastic pollution warriors.
         </h1>
         <div className="mt-10 grid items-center gap-10 lg:grid-cols-2">
-          <Placeholder
-            alt="A woman drinking from a white tumbler at a drinking water refill station outdoors on a sunny day. Setting up a water station before festival season."
-            data-img="about-hero-refill.jpeg"
-            className="aspect-[4/3] w-full"
-          />
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl">
+            <Image
+              src="/images/about/who-we-are/story/WhoWeAre1.jpeg"
+              alt="Person drinking from an O'land refill station"
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
           <p className="text-lg leading-relaxed text-ink/80">
             Who have been leading initiatives to preserve the oceans and protect ourselves from
             plastic pollution since 2019. We have been at the forefront of almost all major festivals
@@ -65,29 +89,36 @@ export default function WhatWeDoPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-        <Placeholder
-          alt="Water Refill Station Custom Branding at Iconic Music Festival - Hydrating thousands of fans plastic-free"
-          data-img="custom-branding-festival.png"
-          className="aspect-[16/7] w-full"
-        />
-      </section>
-
       {/* Green shift */}
-      <section className="mx-auto max-w-4xl px-4 pb-8 text-center sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-          We are helping your company make the green shift easy, beautiful, and fun.
-        </h2>
+      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid items-center gap-10 lg:grid-cols-2">
+          <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+            We are helping your company make the green shift easy, beautiful, and fun.
+          </h2>
+          <div className="relative aspect-square w-full overflow-hidden rounded-2xl">
+            <Image
+              src="/images/about/who-we-are/story/WhoWeAre2.png"
+              alt="Branded O'land refill station at an outdoor event"
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+        </div>
       </section>
 
       {/* Owned and operated */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid items-center gap-10 lg:grid-cols-2">
-          <Placeholder
-            alt="Female Founder of O'land Stations"
-            data-img="founder-team.gif"
-            className="aspect-[4/3] w-full"
-          />
+          <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl">
+            <Image
+              src="/images/about/who-we-are/story/WhoWeAre3.gif"
+              alt="Person rock climbing outdoors"
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
           <div>
             <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
               Owned and operated by nature lovers
@@ -114,37 +145,46 @@ export default function WhatWeDoPage() {
             Meet the Team
           </h2>
           <div className="mt-12 grid grid-cols-2 gap-8 sm:grid-cols-3">
-            {team.map((m) => (
-              <div key={m.name} className="text-center">
-                <Placeholder
-                  alt={m.alt}
-                  data-img={`team-${m.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.jpg`}
-                  className="mx-auto aspect-square w-full max-w-[220px]"
-                />
-                <h3 className="mt-4 text-lg font-extrabold text-ink">{m.name}</h3>
-                <p className="mt-1 text-xs font-bold uppercase tracking-widest text-steel">
-                  {m.role}
-                </p>
-              </div>
-            ))}
+            {team.map((m) =>
+              m.img ? (
+                <div key={m.name} className="text-center">
+                  <div className="relative mx-auto aspect-square w-full max-w-[220px] overflow-hidden rounded-2xl">
+                    <Image
+                      src={m.img}
+                      alt={m.alt}
+                      fill
+                      sizes="220px"
+                      className="object-cover"
+                    />
+                  </div>
+                  <h3 className="mt-4 text-lg font-extrabold text-ink">{m.name}</h3>
+                  <p className="mt-1 text-xs font-bold uppercase tracking-widest text-steel">
+                    {m.role}
+                  </p>
+                </div>
+              ) : (
+                <div key={m.name} className="text-center">
+                  <Placeholder
+                    alt={m.alt}
+                    data-img={`team-${m.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.jpg`}
+                    className="mx-auto aspect-square w-full max-w-[220px]"
+                  />
+                  <h3 className="mt-4 text-lg font-extrabold text-ink">{m.name}</h3>
+                  <p className="mt-1 text-xs font-bold uppercase tracking-widest text-steel">
+                    {m.role}
+                  </p>
+                </div>
+              )
+            )}
           </div>
         </div>
       </section>
 
       {/* Our partners */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <h2 className="text-center text-sm font-bold uppercase tracking-[0.2em] text-steel">
-          Our partners
-        </h2>
-        <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-4 lg:grid-cols-7">
-          {partners.map((p) => (
-            <Placeholder
-              key={p}
-              alt={`${p} logo`}
-              data-img={`partner-${p.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`}
-              className="flex aspect-[3/2] w-full items-center justify-center bg-white"
-            />
-          ))}
+        <p className="eyebrow text-center text-steel">Our Partners</p>
+        <div className="mt-10">
+          <PartnersCarousel />
         </div>
       </section>
     </>
