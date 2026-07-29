@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
+import Image from "next/image";
 import Placeholder from "@/components/Placeholder";
 import CtaButton from "@/components/CtaButton";
 import Reveal from "@/components/Reveal";
@@ -32,22 +33,22 @@ const stations: Station[] = [
     name: "Premium Water Filling Station",
     copy: "Premium 6-tap station designed for high-visibility events, sponsor activations, and polished guest experiences.",
     tags: ["6 taps", "Branding available", "Digital screen add-on"],
-    alt: "The O'land Premium Water Filling Station with sponsor branding and a digital screen at a corporate event",
-    img: "station-premium-6tap.jpg",
+    alt: "Premium 6-tap O'land water filling station",
+    img: "/images/our-solutions/premium-6-tap.jpg",
   },
   {
     name: "Standard Water Filling Station",
     copy: "Durable 6-tap station built for high-traffic event environments and reliable crowd hydration.",
     tags: ["6 taps", "Event-ready", "Rent or purchase"],
-    alt: "The O'land Standard Water Filling Station set up at a busy outdoor festival with guests refilling reusable bottles",
-    img: "station-standard-6tap.jpg",
+    alt: "Standard 6-tap O'land water filling station",
+    img: "/images/our-solutions/standard-6-tap.jpg",
   },
   {
     name: "Mini Water Filling Station",
     copy: "Compact 2-tap station for flexible layouts, smaller zones, and additional refill points.",
     tags: ["2 taps", "Compact footprint", "Branding available"],
-    alt: "The compact Mini Water Filling Station placed in a VIP lounge area indoors",
-    img: "station-mini-oland-tap.jpg",
+    alt: "Mini O'land water filling station",
+    img: "/images/our-solutions/mini-oland.png",
   },
 ];
 
@@ -115,7 +116,15 @@ export default function OurSolutionsPage() {
           <div className="mt-16 divide-y divide-ink/10">
             {stations.map((s, i) => {
               const media = (
-                <Placeholder alt={s.alt} data-img={s.img} className="aspect-[4/3] w-full" />
+                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl ring-1 ring-inset ring-ink/10">
+                  <Image
+                    src={s.img}
+                    alt={s.alt}
+                    fill
+                    sizes="(min-width: 1024px) 50vw, 100vw"
+                    className="object-cover"
+                  />
+                </div>
               );
               const content = (
                 <div>

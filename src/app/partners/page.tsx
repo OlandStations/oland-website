@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Placeholder from "@/components/Placeholder";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Partners for a world without single-use plastic — O'land water stations for events",
@@ -8,11 +8,15 @@ export const metadata: Metadata = {
 };
 
 const communityPartners = [
-  { name: "Aqua Action", href: "https://aquaaction.org/", img: "partner-aqua-action.png" },
+  {
+    name: "Aqua Action",
+    href: "https://aquaaction.org/",
+    img: "/images/partners/aqua-action-logo.png",
+  },
   {
     name: "Green Sports Alliance",
     href: "https://www.greensportsalliance.org/",
-    img: "partner-green-sports-alliance.png",
+    img: "/images/partners/greensportsalliance.png",
   },
 ];
 
@@ -35,11 +39,15 @@ export default function PartnersPage() {
               aria-label={p.name}
               className="block transition-transform hover:scale-[1.02]"
             >
-              <Placeholder
-                alt={`${p.name} logo`}
-                data-img={p.img}
-                className="flex aspect-[3/2] w-full items-center justify-center bg-white"
-              />
+              <div className="relative aspect-[3/2] w-full overflow-hidden rounded-2xl bg-white ring-1 ring-ink/10">
+                <Image
+                  src={p.img}
+                  alt={`${p.name} logo`}
+                  fill
+                  sizes="(min-width: 640px) 300px, 45vw"
+                  className="object-contain p-6"
+                />
+              </div>
             </a>
           ))}
         </div>
@@ -71,11 +79,15 @@ export default function PartnersPage() {
                 Download now
               </a>
             </div>
-            <Placeholder
-              alt="Promotion for the reusable playbook by O'land, featuring a quote from Rachel Labbe-Bellas about transitioning to a circular economy, with a background of green reusable cups and a logo for o'land fill station."
-              data-img="reuse-playbook-graphic.png"
-              className="aspect-[4/3] w-full"
-            />
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-white ring-1 ring-inset ring-ink/10">
+              <Image
+                src="/images/partners/reusePlaybook.png"
+                alt="Reuse Playbook"
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-contain"
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -95,11 +107,15 @@ export default function PartnersPage() {
               Rachel Labbe-Bellas, Founder of O&rsquo;Land
             </footer>
           </blockquote>
-          <Placeholder
-            alt="O'land founder aboard a research expedition"
-            data-img="life-on-boat.png"
-            className="aspect-[4/3] w-full"
-          />
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl ring-1 ring-inset ring-ink/10">
+            <Image
+              src="/images/partners/LifeOnBoat.png"
+              alt="Life on Boat"
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
         </div>
       </section>
     </>
