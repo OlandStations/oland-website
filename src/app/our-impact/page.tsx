@@ -5,9 +5,9 @@ import ImpactSampleForm from "@/components/ImpactSampleForm";
 import { QUOTE_PATH } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Over 1 million plastic bottles reduced — O'land water stations for events",
+  title: "Our Impact | O'land Stations",
   description:
-    "Explore our impact: We've successfully reduced over 4 million plastic bottles, significantly cutting down plastic waste and preserving our environment. Our ambitious goal for 2026 is to eliminate 6 million plastic bottles. Join us in this crucial mission to create a plastic-free future, protect our oceans, and promote sustainable living through our innovative refill stations.",
+    "See how O'land Stations reduces single-use plastic bottles at events — over 4 million avoided so far. Learn about our impact reporting, sustainable event hydration, and our mission to create a world without single-use plastic.",
 };
 
 const sdgs = [

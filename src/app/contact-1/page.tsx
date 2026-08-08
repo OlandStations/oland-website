@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Placeholder from "@/components/Placeholder";
+import ContactForm from "@/components/ContactForm";
 import { contact } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -11,23 +11,33 @@ export const metadata: Metadata = {
 export default function ContactPage() {
   return (
     <>
-      <Placeholder
-        alt=""
-        data-img="contact-hero-ocean.jpeg"
-        rounded={false}
-        className="aspect-[16/6] w-full"
-      />
-      <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">Get in touch</h1>
+      {/* Hero */}
+      <section className="relative isolate overflow-hidden bg-gradient-to-b from-offwhite via-nearwhite to-white">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-[22rem] w-[40rem] -translate-x-1/2 rounded-full bg-blue/10 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-20 right-[12%] -z-10 h-56 w-56 rounded-full bg-teal/15 blur-3xl"
+        />
+        <div className="mx-auto max-w-3xl px-4 pb-14 pt-20 sm:px-6 sm:pb-16 sm:pt-24 lg:px-8">
+          <p className="eyebrow text-steel">Contact</p>
+          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
+            Get in touch
+          </h1>
+          <a
+            href={contact.phoneHref}
+            className="mt-6 inline-block text-2xl font-bold text-coral hover:underline"
+          >
+            {contact.phone}
+          </a>
+        </div>
+      </section>
 
-        <a
-          href={contact.phoneHref}
-          className="mt-6 inline-block text-2xl font-bold text-coral hover:underline"
-        >
-          {contact.phone}
-        </a>
-
-        <dl className="mt-10 space-y-8 border-t border-ink/10 pt-8">
+      {/* Contact details */}
+      <section className="mx-auto max-w-3xl px-4 pb-20 sm:px-6 lg:px-8">
+        <dl className="space-y-8 border-t border-ink/10 pt-8">
           <div>
             <dt className="text-sm font-bold uppercase tracking-widest text-steel">
               General Inquiry
@@ -50,6 +60,14 @@ export default function ContactPage() {
             </dd>
           </div>
         </dl>
+
+        {/* Message form (mailto-based, no backend) */}
+        <div className="mt-12 border-t border-ink/10 pt-8">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-steel">
+            Send us a message
+          </h2>
+          <ContactForm />
+        </div>
       </section>
     </>
   );

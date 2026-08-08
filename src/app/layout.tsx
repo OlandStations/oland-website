@@ -14,7 +14,7 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.olandstations.com"),
   title: {
-    default: "Water Stations for Events",
+    default: "Water Stations for Events | O'land Stations",
     template: "%s",
   },
   description:

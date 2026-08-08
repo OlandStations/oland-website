@@ -5,7 +5,6 @@ import { social, contact, QUOTE_PATH } from "@/lib/site";
 const footerLinks = [
   { label: "Cookies Policy", href: "/cookies-policy" },
   { label: "Our Solutions", href: "/our-water-solutions" },
-  { label: "Give Back Act", href: "/give-back-act" },
   { label: "Our Impact", href: "/our-impact" },
   { label: "Partners", href: "/partners" },
   { label: "Get a Quote", href: QUOTE_PATH },

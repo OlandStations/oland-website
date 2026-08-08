@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Placeholder from "@/components/Placeholder";
+import Image from "next/image";
 import Accordion from "@/components/Accordion";
 
 export const metadata: Metadata = {
@@ -195,11 +195,15 @@ export default function FaqsPage() {
             <Accordion items={aboutItems} />
           </div>
         </div>
-        <Placeholder
-          alt="A woman in a straw hat filling a pink tumbler from a water refill station with a 'Banque Nationale' sign, outdoors with other people in the background."
-          data-img="faq-banque-nationale-station.jpg"
-          className="aspect-[4/5] w-full lg:sticky lg:top-24"
-        />
+        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl ring-1 ring-inset ring-ink/10 lg:sticky lg:top-24">
+          <Image
+            src="/images/faq/IMG_5985.jpeg"
+            alt="A woman in a straw hat filling a pink tumbler from a water refill station with a 'Banque Nationale' sign, outdoors with other people in the background."
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
+          />
+        </div>
       </div>
 
       {/* Full FAQ accordion */}

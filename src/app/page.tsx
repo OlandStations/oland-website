@@ -13,7 +13,7 @@ import { QUOTE_PATH, social } from "@/lib/site";
 const revealDelays = ["delay-100", "delay-200", "delay-300"];
 
 export const metadata: Metadata = {
-  title: "Water Stations for Events",
+  title: "Water Stations for Events | O'land Stations",
   description:
     "Discover our premium water stations designed to elevate large crowd events. With 360-degree custom designs for optimal guest experience, eco-friendly, free impact data and more. Choose sustainability with our innovative hydration solutions!",
 };

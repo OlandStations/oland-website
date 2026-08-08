@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Placeholder from "@/components/Placeholder";
 
 export const metadata: Metadata = {
   title:
@@ -117,10 +116,12 @@ export default function ReadMePage() {
 
       {/* Logo */}
       <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
-        <Placeholder
+        <Image
+          src="/images/oland-site-icon-blue.png"
           alt="O'land Stations logo"
-          data-img="oland-logo-blue.png"
-          className="mx-auto aspect-[4/3] w-full max-w-xs bg-white"
+          width={200}
+          height={200}
+          className="mx-auto h-auto w-40 sm:w-48"
         />
       </section>
 
@@ -135,9 +136,6 @@ export default function ReadMePage() {
             Experiencing the heartfelt truth behind our existence through the words of our founder
             helps us grasp why refilling is a necessity for the world, and consequently, for your
             event.
-          </p>
-          <p className="mt-8 text-sm font-medium text-steel">
-            Our founder during an installation at the Gorge, Washington, USA
           </p>
         </div>
       </section>

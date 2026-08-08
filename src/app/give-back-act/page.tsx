@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Give Back Act — O'land water stations for events",
   description: "Learn about the O'land Stations Give Back Act.",
+  // Not ready for V1: keep the route but don't index or promote it.
+  robots: { index: false, follow: false },
 };
 
 export default function GiveBackActPage() {
