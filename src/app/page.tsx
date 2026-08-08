@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import Placeholder from "@/components/Placeholder";
 import CtaButton from "@/components/CtaButton";
-import NewsletterForm from "@/components/NewsletterForm";
 import Reveal from "@/components/Reveal";
 import LogoCarousel from "@/components/LogoCarousel";
 import { QUOTE_PATH, social } from "@/lib/site";
@@ -203,26 +201,16 @@ export default function Home() {
       {/* 6b. Refill a bottle in 5 seconds */}
       <section className="bg-blue">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:px-8">
-          {/* LEFT: video placeholder with play-button overlay */}
+          {/* LEFT: refill-in-action photo */}
           <div className="flex items-center justify-center">
-            <div className="relative w-full max-w-[500px]">
-              <Placeholder
-                alt="Video: Refill a bottle in 5 seconds"
-                data-img="refill-video.mp4"
-                className="aspect-[4/5] w-full"
+            <div className="relative aspect-[4/5] w-full max-w-[500px] overflow-hidden rounded-2xl shadow-lg">
+              <Image
+                src="/images/faq/IMG_5985.jpeg"
+                alt="A guest refilling a reusable bottle in seconds at a branded O'land water station"
+                fill
+                sizes="(min-width: 1024px) 500px, 90vw"
+                className="object-cover"
               />
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/90 shadow-lg">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="ml-1 h-7 w-7 text-blue"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </span>
-              </div>
             </div>
           </div>
           {/* RIGHT: large headline, vertically centred */}
@@ -352,39 +340,33 @@ export default function Home() {
       {/* 10. Clients */}
       <LogoCarousel />
 
-      {/* 11. Newsletter */}
-      <section className="bg-blue">
-        <div className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 lg:px-8">
-          <h2 className="text-4xl font-extrabold text-white">Stay tuned!</h2>
-          <p className="mx-auto mt-4 max-w-xl text-lg text-white/80">
-            Keep up to date on plastic pollution and what is going on to prevent it.
-          </p>
-          <NewsletterForm dark />
-        </div>
-      </section>
-
-      {/* 12. Instagram */}
+      {/* 11. Instagram + updates CTA (replaces the unwired newsletter form and
+          the Instagram placeholder tiles for V1). */}
       <section className="bg-offwhite">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <h2 className="text-center text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+        <div className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 sm:py-24 lg:px-8">
+          <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
             Join Us on Instagram
           </h2>
-          <div className="mt-12 grid gap-6 sm:grid-cols-3">
-            {[1, 2, 3].map((n) => (
-              <a
-                key={n}
-                href={social.instagram}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block"
-              >
-                <Placeholder
-                  alt={`O'land Stations Instagram post ${n}`}
-                  data-img={`instagram-post-${n}.jpg`}
-                  className="aspect-square w-full transition-transform group-hover:scale-[1.02]"
-                />
-              </a>
-            ))}
+          <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-ink/75">
+            Follow O&rsquo;land for event highlights, impact stories, behind-the-scenes moments,
+            and refill station inspiration.
+          </p>
+          <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-ink/60">
+            Want O&rsquo;land updates? Follow us on Instagram or contact our team for news,
+            partnerships, and event updates.
+          </p>
+          <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <a
+              href={social.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-full bg-coral px-7 py-3 text-sm font-bold uppercase tracking-wide text-white transition-all duration-200 hover:bg-coral/90 hover:shadow-md"
+            >
+              Follow us on Instagram
+            </a>
+            <CtaButton href="/contact-1" variant="outline-dark">
+              Contact us
+            </CtaButton>
           </div>
         </div>
       </section>
