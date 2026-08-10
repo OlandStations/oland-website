@@ -62,7 +62,7 @@ export default function ContactForm() {
       <div className="mt-6">
         <button
           type="submit"
-          className="inline-flex items-center justify-center rounded-full bg-coral px-8 py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-coral/90"
+          className="inline-flex items-center justify-center rounded-full bg-blue px-8 py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-blue/90"
         >
           Send message
         </button>

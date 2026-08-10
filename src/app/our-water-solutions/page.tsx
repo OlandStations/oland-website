@@ -70,7 +70,7 @@ export default function OurSolutionsPage() {
           <Reveal>
             <div>
               <p className="eyebrow text-steel">For Event Organizers, Venues & Sponsors</p>
-              <h1 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight text-ink sm:text-5xl">
+              <h1 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight text-blue sm:text-5xl">
                 Water Refill Solutions for Events, Venues, and Sponsors
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink/75">
@@ -79,10 +79,10 @@ export default function OurSolutionsPage() {
                 impact reports included.
               </p>
               <div className="mt-8 flex flex-wrap gap-4">
-                <CtaButton href={QUOTE_PATH} variant="coral">
+                <CtaButton href={QUOTE_PATH} variant="blue">
                   Request a Quote
                 </CtaButton>
-                <CtaButton href="#stations" variant="outline-dark">
+                <CtaButton href="#stations" variant="outline-blue">
                   Explore Our Stations
                 </CtaButton>
               </div>
@@ -158,7 +158,7 @@ export default function OurSolutionsPage() {
           </div>
 
           <div className="mt-14 text-center">
-            <CtaButton href={QUOTE_PATH} variant="coral">
+            <CtaButton href={QUOTE_PATH} variant="blue">
               Help Me Choose a Station
             </CtaButton>
           </div>
@@ -231,7 +231,7 @@ export default function OurSolutionsPage() {
                   Litres dispensed · Bottles avoided · CO₂e avoided · Usage highlights
                 </p>
                 <div className="mt-auto pt-7">
-                  <CtaButton href="/our-impact" variant="outline-dark">
+                  <CtaButton href="/our-impact" variant="outline-blue">
                     Learn About Impact Reports
                   </CtaButton>
                 </div>
@@ -252,7 +252,7 @@ export default function OurSolutionsPage() {
                   Setup guidance · Equipment care · Event-ready support
                 </p>
                 <div className="mt-auto pt-7">
-                  <CtaButton href={QUOTE_PATH} variant="outline-dark">
+                  <CtaButton href={QUOTE_PATH} variant="outline-blue">
                     Ask About Maintenance
                   </CtaButton>
                 </div>

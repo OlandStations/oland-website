@@ -69,7 +69,7 @@ export default function Home() {
               Premium Sustainable Water Stations for Events and Venues
             </h1>
             <div className="mt-8 flex justify-center">
-              <CtaButton href={QUOTE_PATH} variant="coral">
+              <CtaButton href={QUOTE_PATH} variant="blue">
                 Get a Quote
               </CtaButton>
             </div>
@@ -98,7 +98,7 @@ export default function Home() {
               enhancing the overall user experience.
             </p>
             <div className="mt-7">
-              <CtaButton href={QUOTE_PATH} variant="coral">
+              <CtaButton href={QUOTE_PATH} variant="blue">
                 Get a quote
               </CtaButton>
             </div>
@@ -131,7 +131,7 @@ export default function Home() {
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <Reveal className="reveal-right">
             <p className="eyebrow text-coral">Fan-Centric Design</p>
-            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-blue sm:text-4xl">
               Brand elevation and fan loyalty
             </h2>
             <p className="mt-5 text-lg text-ink/75">
@@ -167,7 +167,7 @@ export default function Home() {
                 crisp refreshment every time.
               </p>
               <div className="mt-7">
-                <CtaButton href={QUOTE_PATH} variant="coral">
+                <CtaButton href={QUOTE_PATH} variant="blue">
                   Get a quote
                 </CtaButton>
               </div>
@@ -249,9 +249,9 @@ export default function Home() {
           {/* RIGHT: text directly on the image */}
           <Reveal className="reveal-right">
             <div className="text-white drop-shadow-lg">
-              <h2 className="text-5xl font-bold leading-tight text-blue">
-                <span className="block w-fit border-b-2 border-blue pb-1">For the planet</span>
-                <span className="mt-2 block w-fit border-b-2 border-blue pb-1">we love</span>
+              <h2 className="text-5xl font-bold leading-tight text-white">
+                <span className="block w-fit border-b-2 border-white/70 pb-1">For the planet</span>
+                <span className="mt-2 block w-fit border-b-2 border-white/70 pb-1">we love</span>
               </h2>
               <p className="mt-6 text-2xl">We saved over:</p>
               <p className="mt-2 text-3xl">
@@ -301,7 +301,7 @@ export default function Home() {
                 <div className="mt-6 flex justify-center">
                   <Link
                     href={QUOTE_PATH}
-                    className="inline-flex items-center justify-center rounded-full bg-coral px-8 py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-coral/90"
+                    className="inline-flex items-center justify-center rounded-full bg-blue px-8 py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-blue/90"
                   >
                     Click here
                   </Link>
@@ -344,7 +344,7 @@ export default function Home() {
           the Instagram placeholder tiles for V1). */}
       <section className="bg-offwhite">
         <div className="mx-auto max-w-3xl px-4 py-20 text-center sm:px-6 sm:py-24 lg:px-8">
-          <h2 className="text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+          <h2 className="text-3xl font-extrabold tracking-tight text-blue sm:text-4xl">
             Join Us on Instagram
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-ink/75">
@@ -360,11 +360,11 @@ export default function Home() {
               href={social.instagram}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-full bg-coral px-7 py-3 text-sm font-bold uppercase tracking-wide text-white transition-all duration-200 hover:bg-coral/90 hover:shadow-md"
+              className="inline-flex items-center justify-center rounded-full bg-blue px-7 py-3 text-sm font-bold uppercase tracking-wide text-white transition-all duration-200 hover:bg-blue/90 hover:shadow-md"
             >
               Follow us on Instagram
             </a>
-            <CtaButton href="/contact-1" variant="outline-dark">
+            <CtaButton href="/contact-1" variant="outline-blue">
               Contact us
             </CtaButton>
           </div>

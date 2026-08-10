@@ -101,7 +101,7 @@ export default function NewsPage() {
         />
         <div className="mx-auto max-w-4xl px-4 pb-24 pt-20 text-center sm:px-6 sm:pb-32 sm:pt-28 lg:px-8">
           <p className="eyebrow text-steel">News</p>
-          <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-ink sm:text-6xl">
+          <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-blue sm:text-6xl">
             News for a greener future
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink/70 sm:text-xl">
@@ -151,7 +151,7 @@ export default function NewsPage() {
                   href={pressReleaseUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center rounded-full bg-coral px-7 py-3 text-sm font-bold uppercase tracking-wide text-white transition-all duration-200 hover:bg-coral/90 hover:shadow-md"
+                  className="inline-flex items-center justify-center rounded-full bg-blue px-7 py-3 text-sm font-bold uppercase tracking-wide text-white transition-all duration-200 hover:bg-blue/90 hover:shadow-md"
                 >
                   Read the Press Release
                 </a>

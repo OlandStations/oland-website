@@ -25,7 +25,7 @@ export default function ReadMePage() {
         </div>
         <div className="mx-auto max-w-4xl px-4 py-14 text-center sm:px-6 lg:px-8">
           <p className="eyebrow text-steel">Our cause it&rsquo;s timeless</p>
-          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
+          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-blue sm:text-5xl">
             Create a world without single-use plastic
           </h1>
         </div>

@@ -63,7 +63,7 @@ export default function LogoCarousel() {
                 alt={logo.alt}
                 height={56}
                 width={160}
-                className="shrink-0 object-contain grayscale opacity-60 transition duration-300 hover:grayscale-0 hover:opacity-100"
+                className="shrink-0 object-contain"
               />
             ))}
           </div>

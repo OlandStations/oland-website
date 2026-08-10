@@ -26,7 +26,7 @@ export default function PartnersPage() {
       {/* Hero */}
       <section className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
         <p className="eyebrow text-steel">Shining a light on sustainability</p>
-        <h1 className="mt-3 text-4xl font-extrabold uppercase tracking-tight text-ink sm:text-6xl">
+        <h1 className="mt-3 text-4xl font-extrabold uppercase tracking-tight text-blue sm:text-6xl">
           Our Community
         </h1>
         <div className="mx-auto mt-12 grid max-w-2xl grid-cols-2 items-center gap-8">
@@ -74,7 +74,7 @@ export default function PartnersPage() {
                 href="https://www.greensportsalliance.org/playbooks/reuse"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-7 inline-flex items-center justify-center rounded-full bg-coral px-7 py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-coral/90"
+                className="mt-7 inline-flex items-center justify-center rounded-full bg-blue px-7 py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-blue/90"
               >
                 Download now
               </a>

@@ -185,7 +185,7 @@ export default function FaqsPage() {
       {/* Intro + about accordion + image */}
       <div className="grid items-start gap-10 lg:grid-cols-2">
         <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">FAQs</h1>
+          <h1 className="text-4xl font-extrabold tracking-tight text-blue sm:text-5xl">FAQs</h1>
           <p className="mt-5 text-lg text-ink/75">
             Take a moment to learn about our stations. Listed to your right, you&rsquo;ll find
             answers to frequently asked questions and more details below each section.

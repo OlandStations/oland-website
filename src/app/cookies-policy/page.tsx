@@ -11,7 +11,7 @@ export default function CookiesPolicyPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
       <p className="eyebrow text-steel">Legal</p>
-      <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
+      <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-blue sm:text-5xl">
         Cookies Policy
       </h1>
       <p className="mt-3 text-sm font-medium text-ink/50">Last updated: August 2026</p>

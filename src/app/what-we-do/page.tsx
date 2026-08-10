@@ -56,7 +56,7 @@ export default function WhatWeDoPage() {
     <>
       {/* Hero */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <h1 className="max-w-4xl text-3xl font-extrabold leading-tight tracking-tight text-ink sm:text-4xl lg:text-5xl">
+        <h1 className="max-w-4xl text-3xl font-extrabold leading-tight tracking-tight text-blue sm:text-4xl lg:text-5xl">
           We are a Benefit Corporation of passionate plastic pollution warriors.
         </h1>
         <div className="mt-10 grid items-center gap-10 lg:grid-cols-2">
@@ -130,7 +130,7 @@ export default function WhatWeDoPage() {
               plastic bottles at source and we believe that when we live the nature we protect it.
             </p>
             <div className="mt-7">
-              <CtaButton href="/read-me" variant="coral">
+              <CtaButton href="/read-me" variant="blue">
                 Read a message from our founder
               </CtaButton>
             </div>

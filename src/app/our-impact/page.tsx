@@ -44,7 +44,7 @@ export default function OurImpactPage() {
       {/* Hero */}
       <section className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
         <p className="eyebrow text-steel">Our current impact</p>
-        <h1 className="mx-auto mt-3 max-w-4xl text-4xl font-extrabold uppercase leading-tight tracking-tight text-ink sm:text-5xl">
+        <h1 className="mx-auto mt-3 max-w-4xl text-4xl font-extrabold uppercase leading-tight tracking-tight text-blue sm:text-5xl">
           We reduced over 4 million single-use plastic bottles
         </h1>
         <div className="relative mx-auto mt-10 aspect-[16/7] w-full overflow-hidden rounded-3xl shadow-xl">
@@ -117,7 +117,7 @@ export default function OurImpactPage() {
               get your freedom from plastic too!
             </p>
             <div className="mt-8">
-              <CtaButton href={QUOTE_PATH} variant="coral">
+              <CtaButton href={QUOTE_PATH} variant="blue">
                 Get a quote
               </CtaButton>
             </div>

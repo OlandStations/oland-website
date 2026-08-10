@@ -23,7 +23,7 @@ export default function ContactPage() {
         />
         <div className="mx-auto max-w-3xl px-4 pb-14 pt-20 sm:px-6 sm:pb-16 sm:pt-24 lg:px-8">
           <p className="eyebrow text-steel">Contact</p>
-          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
+          <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-blue sm:text-5xl">
             Get in touch
           </h1>
           <a

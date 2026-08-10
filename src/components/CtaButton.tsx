@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type Variant = "coral" | "white" | "outline" | "blue" | "outline-dark";
+type Variant = "coral" | "white" | "outline" | "blue" | "outline-dark" | "outline-blue";
 
 const styles: Record<Variant, string> = {
   coral: "bg-coral text-white hover:bg-coral/90",
@@ -8,12 +8,13 @@ const styles: Record<Variant, string> = {
   white: "bg-white text-ink hover:bg-white/90",
   outline: "border-2 border-white text-white hover:bg-white hover:text-ink",
   "outline-dark": "border-2 border-ink/20 text-ink hover:bg-ink hover:text-white",
+  "outline-blue": "border-2 border-blue text-blue hover:bg-blue hover:text-white",
 };
 
 export default function CtaButton({
   href,
   children,
-  variant = "coral",
+  variant = "blue",
   className = "",
 }: {
   href: string;

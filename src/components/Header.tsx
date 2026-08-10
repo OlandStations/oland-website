@@ -51,7 +51,7 @@ export default function Header() {
           <span className="hidden text-sm font-medium text-steel sm:inline">English</span>
           <Link
             href={QUOTE_PATH}
-            className="hidden rounded-full bg-coral px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-coral/90 sm:inline-flex"
+            className="hidden rounded-full bg-blue px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-blue/90 sm:inline-flex"
           >
             Get a Quote
           </Link>
@@ -107,7 +107,7 @@ export default function Header() {
             )}
             <Link
               href={QUOTE_PATH}
-              className="mt-5 inline-flex items-center justify-center rounded-full bg-coral px-6 py-3 text-sm font-bold uppercase tracking-wide text-white"
+              className="mt-5 inline-flex items-center justify-center rounded-full bg-blue px-6 py-3 text-sm font-bold uppercase tracking-wide text-white"
             >
               Get a Quote
             </Link>
