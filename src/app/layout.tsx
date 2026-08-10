@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description:
     "Discover our premium water stations designed to elevate large crowd events. With 360-degree custom designs for optimal guest experience, eco-friendly, free impact data and more. Choose sustainability with our innovative hydration solutions!",
   icons: {
-    icon: "/images/oland-site-icon-blue.png",
+    icon: "/images/shared/brand/oland-site-icon-blue.png",
   },
   openGraph: {
     siteName: "O'land water stations for events",

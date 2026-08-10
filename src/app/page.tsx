@@ -56,7 +56,7 @@ export default function Home() {
       {/* 1. Hero */}
       <section className="relative min-h-[85vh]">
         <Image
-          src="/images/hero.png"
+          src="/images/homepage/hero/homepage-hero.png"
           alt="People at O'land water station"
           fill
           className="object-cover"
@@ -82,7 +82,7 @@ export default function Home() {
         <div className="grid items-center gap-10 lg:grid-cols-2">
           <Reveal className="reveal-right">
             <Image
-              src="/images/brita-station.jpg"
+              src="/images/homepage/sections/brita-station.jpg"
               alt="Brita branded Water Refill Station"
               width={600}
               height={600}
@@ -112,7 +112,7 @@ export default function Home() {
       {/* 3. No lines / No waste — full-bleed cropped banner */}
       <section className="relative w-full overflow-hidden h-[500px]">
         <Image
-          src="/images/no-line-no-waste.jpg"
+          src="/images/homepage/sections/no-line-no-waste.jpg"
           alt="No line no waste"
           fill
           className="object-cover"
@@ -144,7 +144,7 @@ export default function Home() {
           </Reveal>
           <Reveal className="reveal-left">
             <Image
-              src="/images/Fan-Centric-Design.jpg"
+              src="/images/homepage/sections/fan-centric-design.jpg"
               alt="Fan centric design at festival"
               width={600}
               height={600}
@@ -174,7 +174,7 @@ export default function Home() {
             </Reveal>
             <Reveal className="reveal-right">
               <Image
-                src="/images/Filtered-Chilled-Water.jpg"
+                src="/images/homepage/sections/filtered-chilled-water.jpg"
                 alt="Fan enjoying filtered chilled water"
                 width={480}
                 height={640}
@@ -225,7 +225,7 @@ export default function Home() {
       {/* 7. For the planet we love — full-bleed background image */}
       <section className="relative min-h-[600px] overflow-hidden">
         <Image
-          src="/images/for-the-planet-we-love.jpg"
+          src="/images/homepage/sections/for-the-planet-we-love.jpg"
           alt=""
           fill
           className="object-cover"
@@ -273,12 +273,12 @@ export default function Home() {
             {[
               {
                 title: "Rent",
-                src: "/images/Rent.jpg",
+                src: "/images/homepage/sections/rent.jpg",
                 alt: "A young man at a festival near a water filling station",
               },
               {
                 title: "Purchase",
-                src: "/images/purchase.png",
+                src: "/images/homepage/sections/purchase.png",
                 alt: "Water station outdoors at an event",
               },
             ].map((opt, i) => (

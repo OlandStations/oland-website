@@ -3,22 +3,28 @@
 import { useRef } from "react";
 import Image from "next/image";
 
-// Current & previous client logos. Filenames match the assets in /public/images.
+// Current & previous client logos. Filenames match the assets in /public/images/homepage/clients.
 const logos = [
-  { src: "/images/CPKC-Logo.png", alt: "CPKC" },
-  { src: "/images/Evenko-logo.png", alt: "Evenko" },
-  { src: "/images/FestivalInternationalJazz-Logo.png", alt: "Festival International de Jazz de Montréal" },
-  { src: "/images/Fizz-Logo.png", alt: "Fizz" },
-  { src: "/images/JackAlopeLogo.png", alt: "Jackalope" },
-  { src: "/images/Logos_Banner.png", alt: "Client logos" },
-  { src: "/images/MillerGroup-logo.png", alt: "The Miller Group" },
-  { src: "/images/MosaicLogo.png", alt: "Mosaic" },
-  { src: "/images/Oshega-Logo.png", alt: "Osheaga" },
-  { src: "/images/ParcOlympic-Logo.png", alt: "Parc Olympique" },
-  { src: "/images/paris-de-congres-logo.png", alt: "Palais des congrès" },
-  { src: "/images/RBCOpen-Logo.png", alt: "RBC Canadian Open" },
-  { src: "/images/Tribu-logo.png", alt: "Tribu" },
-  { src: "/images/Whitecap-Logo.png", alt: "Whitecap" },
+  { src: "/images/homepage/clients/evenko-logo.png", alt: "Evenko" },
+  { src: "/images/homepage/clients/tribu-logo.png", alt: "Tribu" },
+  { src: "/images/homepage/clients/rbc-canadian-open-logo.png", alt: "RBC Canadian Open" },
+  { src: "/images/homepage/clients/parc-olympique-logo.png", alt: "Parc Olympique" },
+  {
+    src: "/images/homepage/clients/quartier-de-spectacles.png",
+    alt: "Quartier des spectacles Montréal",
+  },
+  { src: "/images/homepage/clients/mosaic-logo.png", alt: "Mosaic" },
+  { src: "/images/homepage/clients/whitecap-entertainment-logo.png", alt: "Whitecap" },
+  { src: "/images/homepage/clients/mural-logo.png", alt: "Mural" },
+  { src: "/images/homepage/clients/jackalope-logo.png", alt: "Jackalope" },
+  { src: "/images/homepage/clients/miller-group-logo.png", alt: "The Miller Group" },
+  {
+    src: "/images/homepage/clients/festival-international-jazz-logo.png",
+    alt: "Festival International de Jazz de Montréal",
+  },
+  { src: "/images/homepage/clients/palais-des-congres-logo.png", alt: "Palais des congrès" },
+  { src: "/images/homepage/clients/cpkc-logo.png", alt: "CPKC" },
+  { src: "/images/homepage/clients/osheaga-logo.png", alt: "Osheaga" },
 ];
 
 export default function LogoCarousel() {

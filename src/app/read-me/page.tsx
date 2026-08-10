@@ -117,7 +117,7 @@ export default function ReadMePage() {
       {/* Logo */}
       <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 lg:px-8">
         <Image
-          src="/images/oland-site-icon-blue.png"
+          src="/images/shared/brand/oland-site-icon-blue.png"
           alt="O'land Stations logo"
           width={200}
           height={200}
