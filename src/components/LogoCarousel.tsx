@@ -27,8 +27,9 @@ const logos = [
   { src: "/images/homepage/clients/osheaga-logo.png", alt: "Osheaga" },
 ];
 
-export default function LogoCarousel() {
+export default function LogoCarousel({ locale = "en" }: { locale?: "en" | "fr" }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isFr = locale === "fr";
 
   function scroll(direction: 1 | -1) {
     scrollRef.current?.scrollBy({ left: direction * 320, behavior: "smooth" });
@@ -38,14 +39,14 @@ export default function LogoCarousel() {
     <section className="bg-offwhite">
       <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
         <h2 className="mb-12 text-center text-2xl font-extrabold tracking-widest text-blue">
-          CURRENT &amp; PREVIOUS CLIENTS
+          {isFr ? "CLIENTS ACTUELS ET PRÉCÉDENTS" : "CURRENT & PREVIOUS CLIENTS"}
         </h2>
 
         <div className="relative">
           {/* Left arrow */}
           <button
             type="button"
-            aria-label="Scroll to previous logos"
+            aria-label={isFr ? "Faire défiler vers les logos précédents" : "Scroll to previous logos"}
             onClick={() => scroll(-1)}
             className="absolute left-4 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-blue shadow-md transition-transform hover:scale-105"
           >
@@ -71,7 +72,7 @@ export default function LogoCarousel() {
           {/* Right arrow */}
           <button
             type="button"
-            aria-label="Scroll to next logos"
+            aria-label={isFr ? "Faire défiler vers les logos suivants" : "Scroll to next logos"}
             onClick={() => scroll(1)}
             className="absolute right-4 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-blue shadow-md transition-transform hover:scale-105"
           >

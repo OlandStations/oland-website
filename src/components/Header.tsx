@@ -4,12 +4,35 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { nav, QUOTE_PATH, type NavItem } from "@/lib/site";
+import {
+  nav,
+  navFr,
+  QUOTE_PATH,
+  QUOTE_PATH_FR,
+  getLocale,
+  otherLocaleHref,
+  type NavItem,
+} from "@/lib/site";
 
 export default function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  const locale = getLocale(pathname);
+  const isFr = locale === "fr";
+  const navItems = isFr ? navFr : nav;
+  const quotePath = isFr ? QUOTE_PATH_FR : QUOTE_PATH;
+  const homeHref = isFr ? "/fr" : "/";
+  const quoteLabel = isFr ? "Demander une soumission" : "Get a Quote";
+  const otherHref = otherLocaleHref(pathname);
+
+  // Keep the <html lang> attribute in sync with the visible locale. Root
+  // layout can only render a single static <html> tag, so this is the
+  // lightweight, static-export-friendly way to correct it per route.
+  useEffect(() => {
+    document.documentElement.lang = isFr ? "fr-CA" : "en-CA";
+  }, [isFr]);
 
   // Close menus on route change.
   useEffect(() => {
@@ -29,13 +52,13 @@ export default function Header() {
     <header className="sticky top-0 z-50 border-b border-ink/10 bg-white/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* Brand */}
-        <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="O'land Stations home">
+        <Link href={homeHref} className="flex shrink-0 items-center gap-2" aria-label="O'land Stations home">
           <Image src="/images/shared/brand/oland-alone.png" alt="O'land" width={120} height={40} priority />
         </Link>
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
-          {nav.map((item) => (
+          {navItems.map((item) => (
             <DesktopNavItem
               key={item.label}
               item={item}
@@ -48,12 +71,12 @@ export default function Header() {
 
         {/* Right cluster */}
         <div className="flex items-center gap-3">
-          <span className="hidden text-sm font-medium text-steel sm:inline">English</span>
+          <LanguageToggle isFr={isFr} otherHref={otherHref} className="hidden sm:inline-block" />
           <Link
-            href={QUOTE_PATH}
+            href={quotePath}
             className="hidden rounded-full bg-blue px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-blue/90 sm:inline-flex"
           >
-            Get a Quote
+            {quoteLabel}
           </Link>
 
           {/* Mobile hamburger */}
@@ -77,7 +100,7 @@ export default function Header() {
           className="max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-ink/10 bg-white px-4 pb-8 pt-2 lg:hidden"
         >
           <nav className="flex flex-col" aria-label="Mobile">
-            {nav.map((item) =>
+            {navItems.map((item) =>
               item.children ? (
                 <div key={item.label} className="border-b border-ink/5 py-2">
                   <p className="px-2 py-2 text-xs font-bold uppercase tracking-widest text-steel">
@@ -106,12 +129,12 @@ export default function Header() {
               ),
             )}
             <Link
-              href={QUOTE_PATH}
+              href={quotePath}
               className="mt-5 inline-flex items-center justify-center rounded-full bg-blue px-6 py-3 text-sm font-bold uppercase tracking-wide text-white"
             >
-              Get a Quote
+              {quoteLabel}
             </Link>
-            <span className="mt-4 px-2 text-sm font-medium text-steel">English</span>
+            <LanguageToggle isFr={isFr} otherHref={otherHref} className="mt-4 px-2" />
           </nav>
         </div>
       )}
@@ -168,6 +191,40 @@ function DesktopNavItem({
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function LanguageToggle({
+  isFr,
+  otherHref,
+  className = "",
+}: {
+  isFr: boolean;
+  otherHref: string;
+  className?: string;
+}) {
+  return (
+    <div className={`text-sm font-bold ${className}`} aria-label="Language">
+      {isFr ? (
+        <Link href={otherHref} className="text-steel hover:text-coral" lang="en" hrefLang="en">
+          EN
+        </Link>
+      ) : (
+        <span className="text-coral" aria-current="true">
+          EN
+        </span>
+      )}
+      <span className="mx-1 text-ink/30">/</span>
+      {isFr ? (
+        <span className="text-coral" aria-current="true">
+          FR
+        </span>
+      ) : (
+        <Link href={otherHref} className="text-steel hover:text-coral" lang="fr" hrefLang="fr">
+          FR
+        </Link>
       )}
     </div>
   );

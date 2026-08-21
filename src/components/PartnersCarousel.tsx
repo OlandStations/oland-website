@@ -51,7 +51,8 @@ const track3x = [...partners, ...partners, ...partners];
 const AUTOPLAY_INTERVAL_MS = 3200;
 const RECENTER_DELAY_MS = 450;
 
-export default function PartnersCarousel() {
+export default function PartnersCarousel({ locale = "en" }: { locale?: "en" | "fr" }) {
+  const isFr = locale === "fr";
   const trackRef = useRef<HTMLDivElement>(null);
   const isHovering = useRef(false);
 
@@ -96,7 +97,7 @@ export default function PartnersCarousel() {
     >
       <button
         type="button"
-        aria-label="Previous partners"
+        aria-label={isFr ? "Partenaires précédents" : "Previous partners"}
         onClick={() => step(-1)}
         className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-blue shadow-md ring-1 ring-ink/10 transition-transform hover:scale-105"
       >
@@ -131,7 +132,7 @@ export default function PartnersCarousel() {
 
       <button
         type="button"
-        aria-label="Next partners"
+        aria-label={isFr ? "Partenaires suivants" : "Next partners"}
         onClick={() => step(1)}
         className="absolute right-0 top-1/2 z-10 flex h-11 w-11 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-blue shadow-md ring-1 ring-ink/10 transition-transform hover:scale-105"
       >

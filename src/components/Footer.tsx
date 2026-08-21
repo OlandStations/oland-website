@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
-import { social, contact, QUOTE_PATH } from "@/lib/site";
+import { social, contact, QUOTE_PATH, QUOTE_PATH_FR, getLocale } from "@/lib/site";
 
 const footerLinks = [
   { label: "Cookies Policy", href: "/cookies-policy" },
@@ -10,25 +13,43 @@ const footerLinks = [
   { label: "Get a Quote", href: QUOTE_PATH },
 ];
 
+const footerLinksFr = [
+  { label: "Politique de cookies", href: "/fr/cookies-policy" },
+  { label: "Nos solutions", href: "/fr/our-water-solutions" },
+  { label: "Notre impact", href: "/fr/our-impact" },
+  { label: "Partenaires", href: "/fr/partners" },
+  { label: "Demander une soumission", href: QUOTE_PATH_FR },
+];
+
 export default function Footer() {
+  const pathname = usePathname();
+  const isFr = getLocale(pathname) === "fr";
+  const links = isFr ? footerLinksFr : footerLinks;
+
   return (
     <footer className="bg-blue text-white">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           {/* Brand */}
           <div className="max-w-xs">
-            <Link href="/" className="flex items-center gap-2" aria-label="O'land Stations home">
+            <Link
+              href={isFr ? "/fr" : "/"}
+              className="flex items-center gap-2"
+              aria-label="O'land Stations home"
+            >
               <Logo className="h-10 w-10" />
               <span className="text-xl font-extrabold tracking-tight">O&rsquo;land Stations</span>
             </Link>
             <p className="mt-4 text-sm text-white/70">
-              Premium sustainable water stations for events and venues.
+              {isFr
+                ? "Stations de remplissage d'eau durables et haut de gamme pour événements et lieux de rassemblement."
+                : "Premium sustainable water stations for events and venues."}
             </p>
           </div>
 
           {/* Links */}
           <nav aria-label="Footer" className="grid grid-cols-2 gap-x-10 gap-y-3">
-            {footerLinks.map((l) => (
+            {links.map((l) => (
               <Link
                 key={l.label}
                 href={l.href}
