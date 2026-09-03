@@ -14,6 +14,12 @@
   --color-nearwhite: #fcfcfd;
   --color-ink: #0c3a4f; /* body text, footer bg */
 
+  /* Impact-calculator charts (src/lib/impact/charts.ts) — the blue bar/line
+     colour at ~10% opacity, used only for the CO2 line chart's area wash.
+     Charts read these tokens at render time via getComputedStyle rather
+     than hardcoding hexes, so this file stays the single source of truth. */
+  --color-chart-area-fill: rgb(0 153 204 / 0.1);
+
   /* Manrope is loaded via next/font and exposed as --font-manrope. */
   --font-manrope: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;

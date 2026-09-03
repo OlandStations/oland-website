@@ -59,6 +59,19 @@ export default function ContactPage() {
               </a>
             </dd>
           </div>
+          <div>
+            <dt className="text-sm font-bold uppercase tracking-widest text-steel">
+              Troubleshooting Inquiries
+            </dt>
+            <dd className="mt-1">
+              <a
+                href={`mailto:${contact.troubleshooting}`}
+                className="text-lg text-ink hover:text-coral"
+              >
+                {contact.troubleshooting}
+              </a>
+            </dd>
+          </div>
         </dl>
 
         {/* Message form (mailto-based, no backend) */}

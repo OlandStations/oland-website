@@ -54,8 +54,18 @@ export const contact = {
   phoneHref: "tel:+14383894057",
   info: "info@olandstations.com",
   marketing: "marketing@olandstations.com",
+  marketingCc: "maria@olandstations.com",
+  troubleshooting: "amelia@olandstations.com",
   location: "Montreal, CA",
 } as const;
+
+export type InquiryType = "general" | "marketing" | "troubleshooting";
+
+export const inquiryRouting: Record<InquiryType, { to: string; cc?: string }> = {
+  general: { to: contact.info },
+  marketing: { to: contact.marketing, cc: contact.marketingCc },
+  troubleshooting: { to: contact.troubleshooting },
+};
 
 export type NavChild = { label: string; href: string };
 export type NavItem = { label: string; href?: string; children?: NavChild[] };
