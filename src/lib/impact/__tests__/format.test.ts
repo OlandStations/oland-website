@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { fmtExact, sumExact, buildPeriodSummary, buildStationSummary, buildCo2Summary } from "../format";
+import {
+  fmtExact,
+  sumExact,
+  buildPeriodSummary,
+  buildStationSummary,
+  buildCo2Summary,
+  buildProvenanceText,
+  buildEditsSummaryLine,
+  type EditProvenance,
+} from "../format";
 import type { Period } from "../parse";
 
 describe("fmtExact", () => {
@@ -86,6 +95,42 @@ describe("buildStationSummary", () => {
     expect(text).toContain("Main Stage");
     expect(text).toContain("3,231.1");
     expect(text).toMatch(/%/);
+  });
+});
+
+describe("buildEditsSummaryLine / buildProvenanceText — edits disclosure", () => {
+  const baseOpts = {
+    files: [{ name: "usage.xlsx", unit: "gallons" }],
+    country: "US" as const,
+    start: "2026-01-05",
+    end: "2026-01-08",
+  };
+
+  it("says 'No manual adjustments' when nothing was edited", () => {
+    expect(buildEditsSummaryLine([])).toBe("No manual adjustments.");
+    const text = buildProvenanceText({ ...baseOpts, edits: [] });
+    expect(text).toContain("No manual adjustments.");
+  });
+
+  it("counts and lists every edit with its before and after values", () => {
+    const edits: EditProvenance[] = [
+      { station: "STN-A", date: "2026-01-06", original: 300.1, edited: 310.1 },
+      { station: "STN-B", date: "2026-01-07", original: 250.1, edited: 255 },
+      { station: "STN-C", date: "2026-01-08", original: 0, edited: 12.5 },
+    ];
+
+    expect(buildEditsSummaryLine(edits)).toBe("3 values manually adjusted:");
+
+    const text = buildProvenanceText({ ...baseOpts, edits });
+    expect(text).toContain("3 values manually adjusted:");
+    expect(text).toContain("STN-A · Jan 6 · 300.1 → 310.1");
+    expect(text).toContain("STN-B · Jan 7 · 250.1 → 255");
+    expect(text).toContain("STN-C · Jan 8 · 0 → 12.5");
+  });
+
+  it("omitting `edits` entirely still produces a valid provenance block (treated as no edits)", () => {
+    const text = buildProvenanceText(baseOpts);
+    expect(text).toContain("No manual adjustments.");
   });
 });
 

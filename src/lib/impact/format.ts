@@ -9,7 +9,7 @@
 
 import type { Country } from "./formulas";
 import type { Period } from "./parse";
-import { fmtDate } from "./parse";
+import { fmtDate, fmtDay } from "./parse";
 
 /**
  * Formats a figure WITHOUT rounding it away: a whole value prints with no
@@ -41,11 +41,19 @@ export function sumExact(values: number[]): number {
 // ---------------------------------------------------------------------------
 export type FileProvenance = { name: string; unit: string };
 
+/**
+ * One manual correction made in the data table — station, date, and the
+ * before/after values. Every edit that can reach a chart, a metric, or a
+ * summary must appear here: this is what makes an edit impossible to hide.
+ */
+export type EditProvenance = { station: string; date: string; original: number; edited: number };
+
 export function buildProvenanceText(opts: {
   files: FileProvenance[];
   country: Country;
   start: string;
   end: string;
+  edits?: EditProvenance[];
 }): string {
   const lines: string[] = [];
   lines.push("How this run read the data");
@@ -58,7 +66,20 @@ export function buildProvenanceText(opts: {
     `Client: ${opts.country === "US" ? "United States (gallons / 20 oz)" : "Canada (litres / 500 mL)"}`
   );
   lines.push(`Date range: ${fmtDate(opts.start)} to ${fmtDate(opts.end)}`);
+  lines.push("");
+  lines.push(buildEditsSummaryLine(opts.edits ?? []));
+  for (const e of opts.edits ?? []) {
+    lines.push(`  ${e.station} · ${fmtDay(e.date)} · ${fmtExact(e.original)} → ${fmtExact(e.edited)}`);
+  }
   return lines.join("\n");
+}
+
+/** "No manual adjustments" or "N values manually adjusted" — the headline
+ *  line of the edits disclosure, usable on its own in the UI as well as
+ *  inside the full provenance text. */
+export function buildEditsSummaryLine(edits: EditProvenance[]): string {
+  if (edits.length === 0) return "No manual adjustments.";
+  return `${edits.length} value${edits.length === 1 ? "" : "s"} manually adjusted:`;
 }
 
 // ---------------------------------------------------------------------------

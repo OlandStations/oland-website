@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   type Country,
   calculateImpact,
@@ -13,19 +14,28 @@ import {
   type UsageTable,
   type DetectedFormat,
   type Granularity,
+  type TableTotals,
   readUsageFile,
   loadSheet,
   sniffUnitsNote,
+  findUnitsNoteText,
+  convertTable,
   convertTableToLitres,
   combineTables,
   dailyTotals,
   stationTotals,
+  computeTableTotals,
   determineGranularity,
   aggregatePeriods,
   eachDate,
   compareISO,
   fmtDate,
   fmtDay,
+  editKey,
+  splitEditKey,
+  applyEdits,
+  parseEditValue,
+  buildCorrectedAOA,
 } from "@/lib/impact/parse";
 import {
   fmtExact,
@@ -35,7 +45,9 @@ import {
   buildStationSummary,
   buildCo2Summary,
   type FileProvenance,
+  type EditProvenance,
 } from "@/lib/impact/format";
+import { detectAnomalies, type AnomalyFlag } from "@/lib/impact/anomalies";
 import { renderChart, type ChartColors, type ChartItem } from "@/lib/impact/charts";
 
 const COUNTRY_STORAGE_KEY = "oland:impact-calculator:country";
@@ -46,6 +58,7 @@ type LoadedFile = {
   format: DetectedFormat;
   table: UsageTable; // raw, in the file's own units — not yet converted
   detectedUnit: Unit | null;
+  unitsNoteText: string | null; // verbatim units-note cell, for the corrected-workbook export
   selectedUnit: Unit | null; // null = not yet confirmed; excluded from totals until it is
   error?: string;
 };
@@ -101,13 +114,14 @@ export default function Calculator() {
   const [dragActive, setDragActive] = useState(false);
   const [chartStatus, setChartStatus] = useState<Record<string, string>>({});
   const [textStatus, setTextStatus] = useState<Record<string, string>>({});
+  const [edits, setEdits] = useState<Record<string, number>>({}); // editKey -> new value, in display units
 
   const bottlesCanvasRef = useRef<HTMLCanvasElement>(null);
   const stationCanvasRef = useRef<HTMLCanvasElement>(null);
   const co2CanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Country preference is the ONE thing this tool remembers across visits —
-  // nothing else (no file data, no date range) touches localStorage.
+  // nothing else (no file data, no date range, no edits) touches localStorage.
   useEffect(() => {
     try {
       const saved = localStorage.getItem(COUNTRY_STORAGE_KEY);
@@ -130,11 +144,31 @@ export default function Calculator() {
   const usingSample = resolvedFiles.length === 0;
   const resolvedFilesKey = resolvedFiles.map((f) => `${f.id}:${f.selectedUnit}`).join("|");
 
-  const combinedTable: UsageTable = useMemo(() => {
+  // The table is shown (and edited) in the file's own units, not litres —
+  // so it reads cell-for-cell against the source workbook. With a single
+  // file that's just its selected unit; with several sharing one unit it's
+  // that unit; a mix of units has no single "file's own units" to show, so
+  // it falls back to litres.
+  const distinctUnits = new Set(resolvedFiles.map((f) => f.selectedUnit));
+  const displayUnit: Unit = usingSample ? "litres" : distinctUnits.size === 1 ? [...distinctUnits][0]! : "litres";
+
+  const baseDisplayTable: UsageTable = useMemo(() => {
     if (usingSample) return SAMPLE_TABLE;
-    return combineTables(resolvedFiles.map((f) => convertTableToLitres(f.table, f.selectedUnit!)));
+    return combineTables(resolvedFiles.map((f) => convertTable(f.table, f.selectedUnit!, displayUnit)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usingSample, resolvedFilesKey]);
+  }, [usingSample, resolvedFilesKey, displayUnit]);
+
+  // Edits are an overlay over baseDisplayTable — never written back to the
+  // uploaded file. Every metric/chart/summary is derived from this table,
+  // so a committed edit reaches all of them immediately.
+  const editedDisplayTable: UsageTable = useMemo(
+    () => applyEdits(baseDisplayTable, edits),
+    [baseDisplayTable, edits]
+  );
+  const combinedTable: UsageTable = useMemo(
+    () => convertTable(editedDisplayTable, displayUnit, "litres"),
+    [editedDisplayTable, displayUnit]
+  );
 
   const dataMin = combinedTable.dates[0] ?? null;
   const dataMax = combinedTable.dates[combinedTable.dates.length - 1] ?? null;
@@ -144,7 +178,9 @@ export default function Calculator() {
   // full span has to be a deliberate act, since workbooks routinely include
   // pre-event setup days that would otherwise inflate every figure. The
   // bundled sample is demo data, not ops data, so it gets a sensible
-  // default range so the page never renders as an empty shell.
+  // default range so the page never renders as an empty shell. Edits are
+  // reset here too: they're only meaningful in the unit/file context they
+  // were made in, and that context just changed.
   useEffect(() => {
     if (usingSample) {
       setDateRange({ start: SAMPLE_TABLE.dates[0], end: SAMPLE_TABLE.dates[SAMPLE_TABLE.dates.length - 1] });
@@ -152,8 +188,9 @@ export default function Calculator() {
       setDateRange(null);
     }
     setGranularityOverride(null);
+    setEdits({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usingSample, resolvedFilesKey]);
+  }, [usingSample, resolvedFilesKey, displayUnit]);
 
   const allDaysInData = dataMin && dataMax ? eachDate(dataMin, dataMax) : [];
   const rangeDays = dateRange ? eachDate(dateRange.start, dateRange.end) : [];
@@ -177,6 +214,11 @@ export default function Calculator() {
     co2Running += litresToCo2Kg(p.value);
     return { label: p.label, value: co2Running };
   });
+
+  // --- Table totals + anomaly flags, computed on the display-unit table so
+  // the table's own numbers (row/column/grand totals) are exactly what's shown ---
+  const tableTotals: TableTotals | null = dateRange ? computeTableTotals(editedDisplayTable, dateRange.start, dateRange.end) : null;
+  const anomalyFlags: AnomalyFlag[] = dateRange ? detectAnomalies(editedDisplayTable, dateRange.start, dateRange.end) : [];
 
   // --- Render the three charts onto <canvas> whenever their inputs change ---
   useEffect(() => {
@@ -205,7 +247,7 @@ export default function Calculator() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange?.start, dateRange?.end, granularity, country, showStationChart, resolvedFilesKey, usingSample]);
+  }, [dateRange?.start, dateRange?.end, granularity, country, showStationChart, resolvedFilesKey, usingSample, edits]);
 
   // --- File loading ---
   async function handleFiles(fileList: FileList | File[]) {
@@ -216,7 +258,11 @@ export default function Calculator() {
         const { sheet, allText } = await readUsageFile(file);
         const { format, table } = loadSheet(sheet);
         const detectedUnit = sniffUnitsNote(allText);
-        setFiles((prev) => [...prev, { id, name: file.name, format, table, detectedUnit, selectedUnit: detectedUnit }]);
+        const unitsNoteText = findUnitsNoteText(allText);
+        setFiles((prev) => [
+          ...prev,
+          { id, name: file.name, format, table, detectedUnit, unitsNoteText, selectedUnit: detectedUnit },
+        ]);
       } catch (err) {
         setFiles((prev) => [
           ...prev,
@@ -226,6 +272,7 @@ export default function Calculator() {
             format: "consolidated",
             table: { dates: [], stations: [], values: {} },
             detectedUnit: null,
+            unitsNoteText: null,
             selectedUnit: null,
             error: err instanceof Error ? err.message : "Could not read this file.",
           },
@@ -261,6 +308,21 @@ export default function Calculator() {
       const start = prev && compareISO(prev.start, newEnd) <= 0 ? prev.start : newEnd;
       return { start, end: newEnd };
     });
+  }
+
+  // --- Edits ---
+  function commitEdit(station: string, date: string, value: number) {
+    setEdits((prev) => ({ ...prev, [editKey(station, date)]: value }));
+  }
+  function revertEdit(station: string, date: string) {
+    setEdits((prev) => {
+      const next = { ...prev };
+      delete next[editKey(station, date)];
+      return next;
+    });
+  }
+  function undoAllEdits() {
+    setEdits({});
   }
 
   // --- Copy / download ---
@@ -308,13 +370,49 @@ export default function Calculator() {
     }
   }
 
+  // --- Corrected-workbook export ---
+  const singleResolvedFile = resolvedFiles.length === 1 ? resolvedFiles[0] : null;
+  const correctedWorkbookFilename = singleResolvedFile
+    ? `${singleResolvedFile.name.replace(/\.(xlsx|xlsm|csv)$/i, "")}-corrected.xlsx`
+    : "impact-data-corrected.xlsx";
+
+  function downloadCorrectedWorkbook() {
+    const aoa = buildCorrectedAOA(editedDisplayTable, singleResolvedFile?.unitsNoteText ?? null);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Corrected");
+    const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = correctedWorkbookFilename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   // --- Provenance + summaries ---
   const provenanceFiles: FileProvenance[] = usingSample
     ? [{ name: SAMPLE_FILE_LABEL, unit: "litres" }]
     : resolvedFiles.map((f) => ({ name: f.name, unit: f.selectedUnit! }));
 
+  const editProvenanceList: EditProvenance[] = Object.keys(edits)
+    .map((key) => {
+      const { station, date } = splitEditKey(key);
+      return { station, date, original: baseDisplayTable.values[date]?.[station] ?? 0, edited: edits[key] };
+    })
+    .sort((a, b) => compareISO(a.date, b.date) || a.station.localeCompare(b.station));
+
   const provenanceText = dateRange
-    ? buildProvenanceText({ files: provenanceFiles, country, start: dateRange.start, end: dateRange.end })
+    ? buildProvenanceText({
+        files: provenanceFiles,
+        country,
+        start: dateRange.start,
+        end: dateRange.end,
+        edits: editProvenanceList,
+      })
     : "";
   const bottlesSummary = dateRange ? buildPeriodSummary(bottlePeriods, impact.bottleUnitLabel) : "";
   const stationSummary = dateRange && showStationChart ? buildStationSummary(stationItems, impact.volumeUnitLabel) : "";
@@ -567,9 +665,48 @@ export default function Calculator() {
         )}
       </section>
 
+      {/* --- Data table --- */}
+      <section className="mt-10">
+        <h2 className="text-lg font-bold text-ink">4. Data</h2>
+        <p className="mt-1 text-sm text-ink/60">
+          Every value the figures below are built from. Click a cell to fix a typo — every metric,
+          chart, and summary recalculates immediately, and every edit stays visible and traceable.
+        </p>
+        {!dateRange || !tableTotals ? (
+          <p className="mt-3 text-sm text-ink/60">Select a date range above to see the data table.</p>
+        ) : (
+          <DataTable
+            baseTable={baseDisplayTable}
+            editedTable={editedDisplayTable}
+            edits={edits}
+            totals={tableTotals}
+            dateRange={dateRange}
+            unitLabel={displayUnit}
+            flags={anomalyFlags}
+            onCommitEdit={commitEdit}
+            onRevertEdit={revertEdit}
+            onUndoAll={undoAllEdits}
+          />
+        )}
+        {!usingSample && dateRange && (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={downloadCorrectedWorkbook}
+              className="rounded-md border border-ink/20 px-3 py-1.5 text-sm font-semibold text-ink hover:bg-ink/5"
+            >
+              Download corrected workbook
+            </button>
+            <span className="text-xs text-ink/50">
+              Same shape as the input, with your edits — saved as {correctedWorkbookFilename}
+            </span>
+          </div>
+        )}
+      </section>
+
       {/* --- Headline metrics --- */}
       <section className="mt-10">
-        <h2 className="text-lg font-bold text-ink">4. Headline figures</h2>
+        <h2 className="text-lg font-bold text-ink">5. Headline figures</h2>
         {!dateRange ? (
           <p className="mt-3 text-sm text-ink/60">Select a date range above to calculate figures.</p>
         ) : (
@@ -596,7 +733,7 @@ export default function Calculator() {
 
       {/* --- Charts --- */}
       <section className="mt-10 space-y-6">
-        <h2 className="text-lg font-bold text-ink">5. Charts</h2>
+        <h2 className="text-lg font-bold text-ink">6. Charts</h2>
         {!dateRange ? (
           <p className="text-sm text-ink/60">Select a date range above to render charts.</p>
         ) : (
@@ -649,7 +786,7 @@ export default function Calculator() {
 
       {/* --- Provenance --- */}
       <section className="mt-10 mb-16">
-        <h2 className="text-lg font-bold text-ink">6. Provenance</h2>
+        <h2 className="text-lg font-bold text-ink">7. Provenance</h2>
         <p className="mt-1 text-sm text-ink/60">
           Paste this into the report so a figure can be traced back to its source months later.
         </p>
@@ -666,7 +803,7 @@ export default function Calculator() {
             <textarea
               readOnly
               value={provenanceText}
-              rows={provenanceFiles.length + 4}
+              rows={provenanceFiles.length + editProvenanceList.length + 6}
               className="mt-1 w-full resize-none rounded-md border border-ink/10 bg-offwhite p-3 font-mono text-sm text-ink"
             />
             {textStatus.provenance && <p className="mt-1 text-xs font-semibold text-teal">{textStatus.provenance}</p>}
@@ -752,6 +889,283 @@ function ChartCard({
         />
         {summaryStatus && <p className="mt-1 text-xs font-semibold text-teal">{summaryStatus}</p>}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DataTable — the editable Station x Date grid. Station rows, date columns,
+// row/column/grand totals, sticky header row + first column, horizontal
+// scroll contained to this component (the page body never scrolls sideways).
+// ---------------------------------------------------------------------------
+function DataTable({
+  baseTable,
+  editedTable,
+  edits,
+  totals,
+  dateRange,
+  unitLabel,
+  flags,
+  onCommitEdit,
+  onRevertEdit,
+  onUndoAll,
+}: {
+  baseTable: UsageTable;
+  editedTable: UsageTable;
+  edits: Record<string, number>;
+  totals: TableTotals;
+  dateRange: { start: string; end: string };
+  unitLabel: string;
+  flags: AnomalyFlag[];
+  onCommitEdit: (station: string, date: string, value: number) => void;
+  onRevertEdit: (station: string, date: string) => void;
+  onUndoAll: () => void;
+}) {
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [cellError, setCellError] = useState<string | null>(null);
+  const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const { stations, dates } = editedTable;
+  const flagsByCell = new Map(flags.map((f) => [editKey(f.station, f.date), f]));
+  const editedCount = Object.keys(edits).length;
+
+  function refKey(rowIdx: number, colIdx: number): string {
+    return `${rowIdx}:${colIdx}`;
+  }
+  function domId(rowIdx: number, colIdx: number): string {
+    return `impact-cell-${rowIdx}-${colIdx}`;
+  }
+  function focusCell(rowIdx: number, colIdx: number) {
+    cellRefs.current.get(refKey(rowIdx, colIdx))?.focus();
+  }
+
+  function startEdit(station: string, date: string) {
+    setEditingKey(editKey(station, date));
+    // Raw value, not fmtExact — an edit field shouldn't show thousands
+    // commas, and the user should see the exact figure they're changing.
+    setDraft(String(editedTable.values[date]?.[station] ?? 0));
+    setCellError(null);
+  }
+  function commit(station: string, date: string, rowIdx: number, colIdx: number) {
+    const result = parseEditValue(draft);
+    if (!result.ok) {
+      setCellError(result.error); // stay in edit mode; the typed text is never dropped
+      return;
+    }
+    onCommitEdit(station, date, result.value);
+    setEditingKey(null);
+    setCellError(null);
+    requestAnimationFrame(() => focusCell(rowIdx, colIdx));
+  }
+  function cancel(rowIdx: number, colIdx: number) {
+    setEditingKey(null);
+    setCellError(null);
+    requestAnimationFrame(() => focusCell(rowIdx, colIdx));
+  }
+
+  function jumpToFlag(flag: AnomalyFlag) {
+    const rowIdx = stations.indexOf(flag.station);
+    const colIdx = dates.indexOf(flag.date);
+    if (rowIdx === -1 || colIdx === -1) return;
+    const el = document.getElementById(domId(rowIdx, colIdx));
+    el?.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+    el?.focus();
+  }
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {flags.length === 0 ? (
+          <p className="text-sm text-ink/60">No values look unusual.</p>
+        ) : (
+          <p className="text-sm font-semibold text-coral">
+            {flags.length} value{flags.length === 1 ? "" : "s"} look unusual —{" "}
+            <button type="button" onClick={() => jumpToFlag(flags[0])} className="underline hover:no-underline">
+              jump to the first
+            </button>
+          </p>
+        )}
+        {editedCount > 0 && (
+          <button
+            type="button"
+            onClick={onUndoAll}
+            className="rounded-md border border-coral/40 px-3 py-1 text-xs font-semibold text-coral hover:bg-coral/5"
+          >
+            Undo all edits ({editedCount})
+          </button>
+        )}
+      </div>
+
+      <div className="mt-3 overflow-auto rounded-md border border-ink/10" style={{ maxHeight: "60vh" }}>
+        <table className="w-full border-separate border-spacing-0 text-sm tabular-nums">
+          <thead>
+            <tr>
+              <th className="sticky left-0 top-0 z-30 border-b border-r border-ink/10 bg-offwhite px-3 py-2 text-left font-bold text-ink">
+                Station
+              </th>
+              {dates.map((d) => {
+                const inRange = compareISO(d, dateRange.start) >= 0 && compareISO(d, dateRange.end) <= 0;
+                return (
+                  <th
+                    key={d}
+                    className={`sticky top-0 z-20 border-b border-ink/10 bg-offwhite px-3 py-2 text-right font-bold ${
+                      inRange ? "text-ink" : "text-ink/35"
+                    }`}
+                  >
+                    {fmtDay(d)}
+                  </th>
+                );
+              })}
+              <th className="sticky top-0 z-20 border-b border-l border-ink/10 bg-offwhite px-3 py-2 text-right font-bold text-ink">
+                Total
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {stations.map((station, rowIdx) => {
+              const rowTotal = totals.rowTotals.find((r) => r.station === station);
+              const fullDiffers = !!rowTotal && Math.abs(rowTotal.fullTotal - rowTotal.rangeTotal) > 1e-9;
+              return (
+                <tr key={station}>
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-10 whitespace-nowrap border-b border-r border-ink/10 bg-white px-3 py-1.5 text-left font-semibold text-ink"
+                  >
+                    {station}
+                  </th>
+                  {dates.map((date, colIdx) => {
+                    const key = editKey(station, date);
+                    const inRange = compareISO(date, dateRange.start) >= 0 && compareISO(date, dateRange.end) <= 0;
+                    const value = editedTable.values[date]?.[station] ?? 0;
+                    const original = baseTable.values[date]?.[station] ?? 0;
+                    const isEdited = key in edits;
+                    const flag = flagsByCell.get(key);
+                    const isEditing = editingKey === key;
+
+                    return (
+                      <td key={date} className={`border-b border-ink/5 p-0 ${inRange ? "" : "bg-offwhite/60"}`}>
+                        {isEditing ? (
+                          <div className="relative">
+                            <input
+                              autoFocus
+                              value={draft}
+                              onChange={(e) => setDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  commit(station, date, rowIdx, colIdx);
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  cancel(rowIdx, colIdx);
+                                }
+                              }}
+                              onBlur={() => commit(station, date, rowIdx, colIdx)}
+                              className={`w-full px-3 py-1.5 text-right outline-none ${cellError ? "bg-coral/10" : "bg-white"}`}
+                            />
+                            {cellError && (
+                              <p className="absolute left-0 top-full z-40 mt-1 whitespace-nowrap rounded bg-coral px-2 py-1 text-xs font-semibold text-white shadow-lg">
+                                {cellError}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div
+                            id={domId(rowIdx, colIdx)}
+                            ref={(el) => {
+                              if (el) cellRefs.current.set(refKey(rowIdx, colIdx), el);
+                              else cellRefs.current.delete(refKey(rowIdx, colIdx));
+                            }}
+                            tabIndex={0}
+                            role="gridcell"
+                            aria-label={`${station}, ${fmtDay(date)}: ${fmtExact(value)}${isEdited ? `, edited from ${fmtExact(original)}` : ""}`}
+                            onClick={() => startEdit(station, date)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                startEdit(station, date);
+                              } else if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                focusCell(Math.max(0, rowIdx - 1), colIdx);
+                              } else if (e.key === "ArrowDown") {
+                                e.preventDefault();
+                                focusCell(Math.min(stations.length - 1, rowIdx + 1), colIdx);
+                              } else if (e.key === "ArrowLeft") {
+                                e.preventDefault();
+                                focusCell(rowIdx, Math.max(0, colIdx - 1));
+                              } else if (e.key === "ArrowRight") {
+                                e.preventDefault();
+                                focusCell(rowIdx, Math.min(dates.length - 1, colIdx + 1));
+                              }
+                            }}
+                            title={isEdited ? `Original: ${fmtExact(original)}` : undefined}
+                            className={`flex cursor-text items-center justify-end gap-1.5 px-3 py-1.5 text-right focus:outline focus:outline-2 focus:outline-coral focus:-outline-offset-2 ${
+                              isEdited ? "border-l-4 border-coral bg-coral/5" : ""
+                            } ${inRange ? "text-ink" : "text-ink/35"}`}
+                          >
+                            {flag && (
+                              <span title={flag.reasons.join("; ")} aria-label={`Flagged: ${flag.reasons.join("; ")}`} className="text-coral">
+                                ▲
+                              </span>
+                            )}
+                            <span>{fmtExact(value)}</span>
+                            {isEdited && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRevertEdit(station, date);
+                                }}
+                                title="Revert to original value"
+                                aria-label={`Revert ${station}, ${fmtDay(date)} to ${fmtExact(original)}`}
+                                className="text-xs text-coral hover:underline"
+                              >
+                                ↺
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td className="border-b border-l border-ink/10 px-3 py-1.5 text-right font-semibold text-ink">
+                    {rowTotal ? fmtExact(rowTotal.rangeTotal) : "—"}
+                    {fullDiffers && rowTotal && (
+                      <div className="text-xs font-normal text-ink/40">(all: {fmtExact(rowTotal.fullTotal)})</div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            <tr>
+              <th
+                scope="row"
+                className="sticky left-0 z-10 border-t-2 border-r border-ink/10 bg-offwhite px-3 py-1.5 text-left font-bold text-ink"
+              >
+                Total
+              </th>
+              {dates.map((date) => {
+                const inRange = compareISO(date, dateRange.start) >= 0 && compareISO(date, dateRange.end) <= 0;
+                return (
+                  <td key={date} className="border-t-2 border-ink/10 bg-offwhite px-3 py-1.5 text-right font-bold text-ink">
+                    {inRange ? fmtExact(totals.columnTotals[date] ?? 0) : <span className="font-normal text-ink/30">—</span>}
+                  </td>
+                );
+              })}
+              <td className="border-t-2 border-l border-ink/10 bg-offwhite px-3 py-1.5 text-right font-bold text-ink">
+                {fmtExact(totals.grandTotalInRange)}
+                {Math.abs(totals.grandTotalFullFile - totals.grandTotalInRange) > 1e-9 && (
+                  <div className="text-xs font-normal text-ink/40">(all: {fmtExact(totals.grandTotalFullFile)})</div>
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-ink/50">
+        Values in {unitLabel}. Click a cell to edit — Enter or click away to save, Esc to cancel, arrow keys to
+        move between cells. Greyed columns are outside the selected date range and excluded from every total.
+      </p>
     </div>
   );
 }

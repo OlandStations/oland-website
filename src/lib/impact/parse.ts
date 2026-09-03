@@ -45,19 +45,36 @@ export function normaliseUnit(word: string): Unit | null {
  * the units selector: a mislabelled note is exactly as damaging as a wrong
  * guess, so it is never acted on without a human confirming it.
  */
-export function sniffUnitsNote(texts: string[]): Unit | null {
-  const found = new Set<Unit>();
+function matchUnitsNotes(texts: string[]): Array<{ unit: Unit; text: string }> {
+  const matches: Array<{ unit: Unit; text: string }> = [];
   for (const text of texts) {
     for (const pattern of UNITS_NOTE_PATTERNS) {
       const match = pattern.exec(text);
       if (match) {
         const unit = normaliseUnit(match[1]);
-        if (unit) found.add(unit);
+        if (unit) matches.push({ unit, text });
       }
     }
   }
+  return matches;
+}
+
+export function sniffUnitsNote(texts: string[]): Unit | null {
+  const found = new Set<Unit>(matchUnitsNotes(texts).map((m) => m.unit));
   if (found.size === 1) return [...found][0];
   return null; // nothing found, or the file contradicts itself
+}
+
+/**
+ * Same detection as sniffUnitsNote, but also returns the matched source
+ * text verbatim — so a corrected-workbook export can carry the original
+ * units note forward instead of losing it.
+ */
+export function findUnitsNoteText(texts: string[]): string | null {
+  const unit = sniffUnitsNote(texts);
+  if (!unit) return null;
+  const match = matchUnitsNotes(texts).find((m) => m.unit === unit);
+  return match ? match.text : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -265,7 +282,7 @@ export function loadRangeExport(sheet: SheetData): UsageTable {
     throw new Error("loadRangeExport: missing Location_Name, Read_Time, or Flow column.");
   }
 
-  const sums = new Map<string, number>(); // key = `${station} ${date}`
+  const sums = new Map<string, number>(); // key = `${station}\u0000${date}`
   const order: string[] = [];
   for (const row of rows) {
     const station = row[locationIdx];
@@ -273,14 +290,14 @@ export function loadRangeExport(sheet: SheetData): UsageTable {
     const date = parseDateTimeToISODate(row[readTimeIdx]);
     if (!date) continue;
     const flow = toNumberOrZero(row[flowIdx]);
-    const key = `${String(station).trim()} ${date}`;
+    const key = `${String(station).trim()}\u0000${date}`;
     if (!sums.has(key)) order.push(key);
     sums.set(key, (sums.get(key) ?? 0) + flow);
   }
 
   const table = emptyTable();
   for (const key of order) {
-    const [station, date] = key.split(" ");
+    const [station, date] = key.split("\u0000");
     setCell(table, date, station, sums.get(key)!);
   }
   return finalizeTable(table);
@@ -308,6 +325,25 @@ export function convertTableToLitres(table: UsageTable, unit: Unit): UsageTable 
     }
   }
   return out;
+}
+
+function scaleTable(table: UsageTable, factor: number): UsageTable {
+  if (factor === 1) return table;
+  const out: UsageTable = { dates: [...table.dates], stations: [...table.stations], values: {} };
+  for (const date of table.dates) {
+    out.values[date] = {};
+    for (const station of Object.keys(table.values[date])) {
+      out.values[date][station] = table.values[date][station] * factor;
+    }
+  }
+  return out;
+}
+
+/** Converts a table between "gallons" and "litres" in either direction. */
+export function convertTable(table: UsageTable, from: Unit, to: Unit): UsageTable {
+  if (from === to) return table;
+  if (to === "litres") return convertTableToLitres(table, from); // from must be "gallons" here
+  return scaleTable(table, 1 / LITRES_PER_US_GALLON); // to === "gallons", from === "litres"
 }
 
 /** Sums overlapping (date, station) cells across files; missing cells count as 0. */
@@ -396,6 +432,40 @@ export function stationTotals(table: UsageTable, start: string, end: string): Ar
   return table.stations.map((s) => [s, totals.get(s) ?? 0]);
 }
 
+export type TableTotals = {
+  /** One entry per station, in table order — rangeTotal sums only [start,
+   *  end]; fullTotal sums every date in the table, so a differing full-file
+   *  total (e.g. pre-event days) can be shown alongside it. */
+  rowTotals: Array<{ station: string; rangeTotal: number; fullTotal: number }>;
+  /** Per-date total across all stations, for every date in the table —
+   *  callers decide how to treat out-of-range dates (e.g. a dash instead
+   *  of a number in a totals row), this just reports the arithmetic. */
+  columnTotals: Record<string, number>;
+  grandTotalInRange: number;
+  grandTotalFullFile: number;
+};
+
+/** Row/column/grand totals for a data table — the numbers behind an
+ *  editable spreadsheet-style view. Range totals exclude dates outside
+ *  [start, end]; full-file totals never do. */
+export function computeTableTotals(table: UsageTable, start: string, end: string): TableTotals {
+  const rangeTotals = stationTotals(table, start, end);
+  const fullRange = table.dates.length ? [table.dates[0], table.dates[table.dates.length - 1]] : [start, end];
+  const fullTotals = new Map(stationTotals(table, fullRange[0], fullRange[1]));
+
+  const rowTotals = rangeTotals.map(([station, rangeTotal]) => ({
+    station,
+    rangeTotal,
+    fullTotal: fullTotals.get(station) ?? rangeTotal,
+  }));
+
+  const columnTotals = dailyTotals(table);
+  const grandTotalInRange = rowTotals.reduce((a, r) => a + r.rangeTotal, 0);
+  const grandTotalFullFile = rowTotals.reduce((a, r) => a + r.fullTotal, 0);
+
+  return { rowTotals, columnTotals, grandTotalInRange, grandTotalFullFile };
+}
+
 export type Granularity = "day" | "week" | "month";
 
 export function determineGranularity(start: string, end: string, override?: Granularity | null): Granularity {
@@ -447,6 +517,86 @@ export function aggregatePeriods(
     byMonth.set(key, byMonth.get(key)! + (daily[d] ?? 0));
   }
   return order.map((key) => ({ label: fmtMonthYear(`${key}-01`), value: byMonth.get(key)! }));
+}
+
+// ---------------------------------------------------------------------------
+// Edits — an overlay applied over the parsed data. Never written back to
+// the uploaded file: this always produces a NEW table, so the original
+// stays intact for revert / "undo all" / the original-value tooltip.
+// ---------------------------------------------------------------------------
+
+/** Key for one editable cell, stable across re-renders and re-parses. Uses
+ *  U+0000 as the join character -- station names routinely contain spaces
+ *  ("Station 1", "Main Stage"), so a plain space would be ambiguous to
+ *  split back apart; dates are always plain ISO with no such character. */
+export function editKey(station: string, date: string): string {
+  return `${station}\u0000${date}`;
+}
+
+export function splitEditKey(key: string): { station: string; date: string } {
+  const sep = key.indexOf("\u0000");
+  return { station: key.slice(0, sep), date: key.slice(sep + 1) };
+}
+
+/**
+ * Applies an edits overlay (editKey -> new value) over a table, returning a
+ * NEW table — the input table is never mutated. An edit may also fill in a
+ * cell that was missing from the original (sparse) data.
+ */
+export function applyEdits(table: UsageTable, edits: Record<string, number>): UsageTable {
+  const keys = Object.keys(edits);
+  if (keys.length === 0) return table;
+
+  const out: UsageTable = { dates: [...table.dates], stations: [...table.stations], values: {} };
+  for (const date of out.dates) out.values[date] = { ...table.values[date] };
+
+  for (const key of keys) {
+    const { station, date } = splitEditKey(key);
+    if (!out.values[date]) {
+      out.values[date] = {};
+      out.dates.push(date);
+    }
+    if (!out.stations.includes(station)) out.stations.push(station);
+    out.values[date][station] = edits[key];
+  }
+  out.dates.sort();
+  return out;
+}
+
+/**
+ * Validates a typed cell edit. Only non-negative numbers are accepted;
+ * everything else is rejected with a reason to show inline — never
+ * silently coerced, and the caller must leave the previous value in place
+ * on rejection rather than committing anything.
+ */
+export function parseEditValue(text: string): { ok: true; value: number } | { ok: false; error: string } {
+  const cleaned = text.trim().replace(/,/g, "");
+  if (cleaned === "") return { ok: false, error: "Enter a number." };
+  const value = Number(cleaned);
+  if (!Number.isFinite(value)) return { ok: false, error: "Enter a valid number." };
+  if (value < 0) return { ok: false, error: "Must be zero or greater." };
+  return { ok: true, value };
+}
+
+// ---------------------------------------------------------------------------
+// Corrected-workbook export — the inverse of loadConsolidated: table -> AOA,
+// same shape as the input (Station column, one column per date).
+// ---------------------------------------------------------------------------
+
+/** Builds the AOA for a corrected-workbook export. Pure — the browser-only
+ *  part (actually writing the .xlsx) is exportCorrectedWorkbook, below. */
+export function buildCorrectedAOA(table: UsageTable, unitsNoteText?: string | null): unknown[][] {
+  const header = ["Station", ...table.dates.map((d) => fmtDate(d))];
+  const rows = table.stations.map((station) => [
+    station,
+    ...table.dates.map((d) => table.values[d]?.[station] ?? 0),
+  ]);
+  const aoa: unknown[][] = [header, ...rows];
+  if (unitsNoteText) {
+    aoa.push([]);
+    aoa.push([unitsNoteText]);
+  }
+  return aoa;
 }
 
 // ---------------------------------------------------------------------------
