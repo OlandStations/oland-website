@@ -175,6 +175,54 @@ export default function QuoteFormFr() {
         });
         // Never show the success screen on a failed submit.
         if (!res.ok) throw new Error(`HubSpot responded ${res.status}`);
+
+        // Fire-and-forget relative to the "Thank you" UI below — but
+        // sequenced internally: the monday.com item's "HubSpot Deal"
+        // column needs the real deal id, so it has to wait on
+        // /api/create-deal before creating the rental item. Same pattern
+        // as QuoteForm.tsx; `notes` additionally maps to the "Extra
+        // comments & notes" column (text2__1) via MONDAY_COLUMN_MAP.
+        (async () => {
+          const dealPayload = {
+            firstname: payloadData.firstname.trim(),
+            lastname: payloadData.lastname.trim(),
+            email: payloadData.email.trim(),
+            eventStartDate: payloadData.event_start_date, // "YYYY-MM-DD"
+            eventEndDate: payloadData.event_end_date, // "YYYY-MM-DD"
+            eventLocation: payloadData.event_location.trim(),
+            expectedAttendance: payloadData.event_attendance.trim(),
+            notes: payloadData.messages.trim(),
+          };
+
+          let hubspotDealId: string | undefined;
+          try {
+            const dealRes = await fetch("/api/create-deal", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(dealPayload),
+            });
+            const dealData = await dealRes.json<{ ok?: boolean; dealId?: string }>().catch(() => null);
+            if (dealData?.ok) {
+              hubspotDealId = dealData.dealId;
+            } else {
+              console.error("create-deal failed:", dealData);
+            }
+          } catch (err) {
+            console.error("create-deal failed:", err);
+          }
+
+          // Runs regardless of whether the HubSpot call above succeeded —
+          // a missing hubspotDealId just means the rental item is created
+          // without a linked deal, not skipped entirely.
+          fetch("/api/create-rental-item", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...dealPayload, hubspotDealId }),
+          }).catch((err) => {
+            console.error("create-rental-item failed:", err);
+          });
+        })();
+
         setStatus("success");
       } catch {
         setStatus("error");
