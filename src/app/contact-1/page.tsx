@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import ContactForm from "@/components/ContactForm";
 import { contact } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -40,7 +39,7 @@ export default function ContactPage() {
         <dl className="space-y-8 border-t border-ink/10 pt-8">
           <div>
             <dt className="text-sm font-bold uppercase tracking-widest text-steel">
-              General Inquiry
+              General Inquiries
             </dt>
             <dd className="mt-1">
               <a href={`mailto:${contact.info}`} className="text-lg text-ink hover:text-coral">
@@ -61,7 +60,7 @@ export default function ContactPage() {
           </div>
           <div>
             <dt className="text-sm font-bold uppercase tracking-widest text-steel">
-              Troubleshooting Inquiries
+              Troubleshooting
             </dt>
             <dd className="mt-1">
               <a
@@ -73,14 +72,6 @@ export default function ContactPage() {
             </dd>
           </div>
         </dl>
-
-        {/* Message form (mailto-based, no backend) */}
-        <div className="mt-12 border-t border-ink/10 pt-8">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-steel">
-            Send us a message
-          </h2>
-          <ContactForm />
-        </div>
       </section>
     </>
   );

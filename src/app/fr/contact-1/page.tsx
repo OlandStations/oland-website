@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import ContactFormFr from "@/components/ContactFormFr";
 import { contact } from "@/lib/site";
 
 // NOTE: AI-generated French translation — pending Rachel/Amelia review.
@@ -49,7 +48,7 @@ export default function ContactPageFr() {
         <dl className="space-y-8 border-t border-ink/10 pt-8">
           <div>
             <dt className="text-sm font-bold uppercase tracking-widest text-steel">
-              Demande générale
+              Demandes générales
             </dt>
             <dd className="mt-1">
               <a href={`mailto:${contact.info}`} className="text-lg text-ink hover:text-coral">
@@ -70,7 +69,7 @@ export default function ContactPageFr() {
           </div>
           <div>
             <dt className="text-sm font-bold uppercase tracking-widest text-steel">
-              Demandes de dépannage
+              Dépannage
             </dt>
             <dd className="mt-1">
               <a
@@ -82,14 +81,6 @@ export default function ContactPageFr() {
             </dd>
           </div>
         </dl>
-
-        {/* Message form (mailto-based, no backend) */}
-        <div className="mt-12 border-t border-ink/10 pt-8">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-steel">
-            Envoyez-nous un message
-          </h2>
-          <ContactFormFr />
-        </div>
       </section>
     </>
   );
