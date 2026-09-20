@@ -67,6 +67,18 @@ export const inquiryRouting: Record<InquiryType, { to: string; cc?: string }> = 
   troubleshooting: { to: contact.troubleshooting },
 };
 
+// The contact form's inquiryType value, mapped to the exact option string
+// the "Inquiry Type" HubSpot ticket property expects (confirmed via GET
+// /crm/v3/properties/tickets — see CONTACT-FORM-SETUP.md). HubSpot's
+// dropdown options are English-only, so this stays constant regardless of
+// which locale's form (EN/FR) is submitting — don't swap in a translated
+// label here, it would silently stop matching the HubSpot property.
+export const hubspotInquiryLabel: Record<InquiryType, string> = {
+  general: "General Inquiry",
+  marketing: "Marketing",
+  troubleshooting: "Troubleshooting",
+};
+
 export type NavChild = { label: string; href: string };
 export type NavItem = { label: string; href?: string; children?: NavChild[] };
 
@@ -107,5 +119,5 @@ export const navFr: NavItem[] = [
     label: "Actualités",
     children: [{ label: "Actualités", href: "/fr/news-about-sustainability" }],
   },
-  { label: "Contact", href: "/fr/contact-1" },
+  { label: "Nous joindre", href: "/fr/contact-1" },
 ];

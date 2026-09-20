@@ -43,12 +43,12 @@ const testimonials = [
   },
   {
     quote:
-      "Dans l'ensemble, un excellent produit! Ce fut un grand succès et nous avons hâte de voir davantage de développement dans les années à venir.",
+      "Un produit remarquable à tous les égards! Ce fut un franc succès et nous avons hâte de découvrir les futures innovations d'O'land.",
     author: "Emily Simon, Whitecap Entertainment",
   },
   {
     quote:
-      "D'une idée née lors d'un concours d'innovation à un impact mesurable dans le monde réel! O'land Stations tient sa promesse - une bouteille d'eau évitée à la fois.",
+      "D'une simple idée née lors d'un concours d'innovation à un impact tangible sur le terrain! O'land Stations tient sa promesse, une bouteille à la fois.",
     author: "Kariann Aarup, Aqua Action Toronto IWA",
   },
   {
@@ -74,8 +74,8 @@ export default function HomeFr() {
         <div className="relative z-10 mx-auto flex min-h-[85vh] max-w-7xl flex-col items-center justify-center px-4 py-20 text-center text-white sm:px-6 lg:px-8">
           <Reveal className="reveal w-full">
             <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-              Stations de remplissage d&rsquo;eau durables et haut de gamme pour événements et
-              lieux de rassemblement
+              Stations de distribution d&rsquo;eau écoresponsables et haut de gamme pour événements
+              et lieux de rassemblement
             </h1>
             <div className="mt-8 flex justify-center">
               <CtaButton href={QUOTE_PATH_FR} variant="blue">
@@ -100,12 +100,11 @@ export default function HomeFr() {
           </Reveal>
           <Reveal className="reveal-left">
             <h2 className="text-3xl font-extrabold tracking-tight text-blue sm:text-4xl">
-              Design personnalisé à 360 degrés
+              Habillage et design personnalisé à 360°
             </h2>
             <p className="mt-5 text-lg text-ink/75">
-              Engagez votre auditoire avec un affichage personnalisé et créez une expérience fluide
-              lors de votre événement, tout en rehaussant l&rsquo;expérience globale des
-              participants.
+              Captez l&rsquo;attention de votre public grâce à un affichage sur mesure et offrez un
+              service fluide, tout en rehaussant l&rsquo;expérience globale de vos participants.
             </p>
             <div className="mt-7">
               <CtaButton href={QUOTE_PATH_FR} variant="blue">
@@ -113,8 +112,8 @@ export default function HomeFr() {
               </CtaButton>
             </div>
             <p className="mt-8 text-xl font-bold text-steel">
-              1 CONSOMMATEUR SUR 2 convient que la commandite a un impact positif sur les marques
-              impliquées
+              1 consommateur sur 2 affirme que la commandite a un impact positif sur les marques
+              partenaires.
             </p>
           </Reveal>
         </div>
@@ -130,9 +129,7 @@ export default function HomeFr() {
         />
         <div className="absolute inset-0 z-10 flex items-center justify-center px-4 text-center">
           <p className="text-4xl font-extrabold leading-tight tracking-tight text-white drop-shadow-lg sm:text-6xl lg:text-7xl">
-            &laquo; Aucune file
-            <br />
-            aucun gaspillage &raquo;
+            &laquo; Zéro attente, zéro déchet &raquo;
           </p>
         </div>
       </section>
@@ -143,16 +140,14 @@ export default function HomeFr() {
           <Reveal className="reveal-right">
             <p className="eyebrow text-coral">Une conception axée sur les participants</p>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-blue sm:text-4xl">
-              Rehausser votre image de marque et la fidélité des participants
+              Rehaussez votre image de marque et la fidélité de vos participants
             </h2>
             <p className="mt-5 text-lg text-ink/75">
-              Nos stations d&rsquo;eau sont conçues pour donner la priorité à vos clients. Nous
-              comprenons qu&rsquo;offrir une expérience supérieure avec un équipement comme le
-              nôtre facilite non seulement la réduction de l&rsquo;utilisation du plastique, mais
-              rehausse aussi l&rsquo;expérience globale et la sécurité d&rsquo;hydratation des
-              participants à l&rsquo;événement. Cette approche contribue à renforcer la notoriété
-              et la confiance envers vos commanditaires, rendant leur implication encore plus
-              significative.
+              Nos stations sont pensées avant tout pour le bien-être de vos visiteurs. Offrir un
+              service de ravitaillement haut de gamme permet non seulement de réduire le plastique
+              à usage unique, mais garantit aussi une hydratation rapide et sécuritaire pour tous.
+              Cette approche valorise vos commanditaires et renforce la confiance du public,
+              rendant chaque partenariat encore plus percutant.
             </p>
           </Reveal>
           <Reveal className="reveal-left">
@@ -173,11 +168,11 @@ export default function HomeFr() {
           <div className="grid items-center gap-10 lg:grid-cols-2">
             <Reveal className="reveal-left">
               <h2 className="text-3xl font-extrabold tracking-tight text-blue sm:text-4xl">
-                Eau filtrée et rafraîchie
+                Une eau pure et bien fraîche
               </h2>
               <p className="mt-5 text-lg text-teal">
-                Étanchez votre soif avec notre eau filtrée, rafraîchie et distribuée rapidement,
-                pour un rafraîchissement pur à chaque fois.
+                Étanchez votre soif avec une eau fraîche, filtrée et servie en un instant, pour une
+                pause désaltérante garantie.
               </p>
               <div className="mt-7">
                 <CtaButton href={QUOTE_PATH_FR} variant="blue">
@@ -202,7 +197,7 @@ export default function HomeFr() {
       <section className="bg-[#f2f2f1]">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-8 text-center text-xl font-extrabold uppercase tracking-tight sm:text-2xl lg:px-8">
           <span className="text-blue">
-            Créer un monde{" "}
+            Bâtir un monde{" "}
             <span className="underline decoration-teal decoration-4 underline-offset-4">
               sans
             </span>
@@ -229,7 +224,7 @@ export default function HomeFr() {
           {/* RIGHT: large headline, vertically centred */}
           <div className="flex items-center">
             <p className="text-5xl font-extrabold text-white lg:text-7xl">
-              Remplissez une bouteille en 5 secondes
+              Remplissez votre bouteille en 5 secondes
             </p>
           </div>
         </div>
@@ -248,16 +243,14 @@ export default function HomeFr() {
           <Reveal className="reveal-left">
             <div className="rounded-xl bg-blue/85 p-8">
               <p className="text-lg font-semibold text-white">
-                Dans notre cheminement vers un avenir durable, nous reconnaissons l&rsquo;impact
-                profond que chacune de nos stations d&rsquo;eau a sur les gens, les événements et
-                la planète.
+                Vers un avenir plus vert, nous mesurons l&rsquo;impact concret de chacune de nos
+                stations sur les festivaliers, les communautés et la planète.
               </p>
               <p className="mt-4 text-lg font-semibold text-white">
-                Chez O&rsquo;land Water Stations, notre engagement réside dans la conception et la
-                fabrication responsables de nos produits, en veillant à ce qu&rsquo;ils aient un
-                impact minimal sur l&rsquo;environnement. Nous nous consacrons à créer des stations
-                d&rsquo;eau qui résistent à l&rsquo;épreuve du temps, incarnant la responsabilité
-                environnementale tout en minimisant le gaspillage.
+                Chez O&rsquo;land Stations, notre engagement repose sur l&rsquo;éco-conception et une
+                fabrication responsable visant une empreinte écologique minimale. Nous concevons
+                des équipements robustes, faits pour résister à l&rsquo;épreuve du temps tout en
+                éliminant le gaspillage à la source.
               </p>
             </div>
           </Reveal>
@@ -270,8 +263,8 @@ export default function HomeFr() {
               </h2>
               <p className="mt-6 text-2xl">Nous avons évité :</p>
               <p className="mt-2 text-3xl">
-                4 MILLIONS de bouteilles de plastique et <span className="font-extrabold">57 505 t</span>{" "}
-                d&rsquo;émissions de CO2e
+                4 millions de bouteilles de plastique et <span className="font-extrabold">57 505 t</span>{" "}
+                d&rsquo;émissions d&rsquo;éq. CO₂ évitées
               </p>
             </div>
           </Reveal>
@@ -282,19 +275,23 @@ export default function HomeFr() {
       <section className="bg-white">
         <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 lg:px-8">
           <h2 className="text-center text-3xl font-extrabold tracking-tight text-blue sm:text-4xl">
-            Choisissez votre option et <span className="text-coral">demandez une soumission</span>
+            Choisissez votre formule et <span className="text-coral">demandez une soumission</span>
           </h2>
           <div className="mt-12 grid grid-cols-2 gap-12">
             {[
               {
-                title: "Louer",
+                title: "Location",
                 src: "/images/homepage/sections/rent.jpg",
                 alt: "Un jeune homme dans un festival près d'une station de remplissage d'eau",
+                body: "La formule flexible et clé en main, idéale pour vos festivals et événements ponctuels.",
+                buttonLabel: "Demander un devis de location",
               },
               {
-                title: "Acheter",
+                title: "Achat",
                 src: "/images/homepage/sections/purchase.png",
                 alt: "Station d'eau à l'extérieur lors d'un événement",
+                body: "Des stations pérennes et ultra-robustes conçues pour vos installations permanentes.",
+                buttonLabel: "Consulter nos modèles",
               },
             ].map((opt, i) => (
               <Reveal key={opt.title} className={`flex flex-col ${i === 0 ? "reveal-left" : "reveal-right"}`}>
@@ -311,14 +308,14 @@ export default function HomeFr() {
                   {opt.title.toUpperCase()}
                 </h3>
                 <p className="mt-2 text-center text-ink/60">
-                  seulement les matériaux et la fabrication de la plus haute qualité
+                  {opt.body}
                 </p>
                 <div className="mt-6 flex justify-center">
                   <Link
                     href={QUOTE_PATH_FR}
                     className="inline-flex items-center justify-center rounded-full bg-blue px-8 py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-blue/90"
                   >
-                    Cliquez ici
+                    {opt.buttonLabel}
                   </Link>
                 </div>
               </Reveal>
@@ -363,13 +360,12 @@ export default function HomeFr() {
             Suivez-nous sur Instagram
           </h2>
           <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-ink/75">
-            Suivez O&rsquo;land pour des faits saillants d&rsquo;événements, des récits d&rsquo;impact,
-            des coulisses et de l&rsquo;inspiration sur nos stations de remplissage.
+            Suivez les coulisses de nos événements, découvrez nos bilans d&rsquo;impact et
+            inspirez-vous de nos installations sur le terrain.
           </p>
           <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-ink/60">
-            Vous voulez des nouvelles d&rsquo;O&rsquo;land? Suivez-nous sur Instagram ou contactez
-            notre équipe pour des nouvelles, des partenariats et des mises à jour sur les
-            événements.
+            Vous organisez un événement ou souhaitez explorer un partenariat? Rejoignez notre
+            communauté Instagram ou écrivez directement à notre équipe!
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <a
@@ -381,7 +377,7 @@ export default function HomeFr() {
               Suivez-nous sur Instagram
             </a>
             <CtaButton href="/fr/contact-1" variant="outline-blue">
-              Nous contacter
+              Contactez-nous
             </CtaButton>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { contact } from "@/lib/site";
 
 // NOTE: AI-generated French translation — pending Rachel/Amelia review.
 export const metadata: Metadata = {
-  title: "Politique de cookies | O'land Stations",
+  title: "Politique relative aux témoins (cookies) | O'land Stations",
   description:
     "Découvrez comment O'land Stations peut utiliser des cookies et des technologies similaires pour améliorer le fonctionnement du site, comprendre le trafic et soutenir les services intégrés.",
   alternates: {
@@ -20,7 +20,7 @@ export default function CookiesPolicyPageFr() {
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
       <p className="eyebrow text-steel">Mentions légales</p>
       <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-blue sm:text-5xl">
-        Politique de cookies
+        Politique relative aux témoins (cookies)
       </h1>
       <p className="mt-3 text-sm font-medium text-ink/50">Dernière mise à jour : août 2026</p>
 

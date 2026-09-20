@@ -14,7 +14,7 @@ const footerLinks = [
 ];
 
 const footerLinksFr = [
-  { label: "Politique de cookies", href: "/fr/cookies-policy" },
+  { label: "Politique relative aux témoins (cookies)", href: "/fr/cookies-policy" },
   { label: "Nos solutions", href: "/fr/our-water-solutions" },
   { label: "Notre impact", href: "/fr/our-impact" },
   { label: "Partenaires", href: "/fr/partners" },
@@ -74,7 +74,7 @@ export default function Footer() {
               </SocialLink>
             </div>
             <p className="text-sm text-white/70">
-              {contact.location} |{" "}
+              {isFr ? "Montréal, QC, Canada" : contact.location} |{" "}
               <a href={`mailto:${contact.info}`} className="hover:text-coral">
                 {contact.info}
               </a>
