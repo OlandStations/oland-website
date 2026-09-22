@@ -264,7 +264,7 @@ export default function HomeFr() {
               <p className="mt-6 text-2xl">Nous avons évité :</p>
               <p className="mt-2 text-3xl">
                 4 millions de bouteilles de plastique et <span className="font-extrabold">57 505 t</span>{" "}
-                d&rsquo;émissions d&rsquo;éq. CO₂ évitées
+                d&rsquo;émissions d&rsquo;éq. CO₂
               </p>
             </div>
           </Reveal>
