@@ -261,11 +261,8 @@ export default function HomeFr() {
                 <span className="block w-fit border-b-2 border-white/70 pb-1">Pour la planète</span>
                 <span className="mt-2 block w-fit border-b-2 border-white/70 pb-1">que nous aimons</span>
               </h2>
-              <p className="mt-6 text-2xl">Nous avons évité :</p>
-              <p className="mt-2 text-3xl">
-                4 millions de bouteilles de plastique et <span className="font-extrabold">57 505 t</span>{" "}
-                d&rsquo;émissions d&rsquo;éq. CO₂
-              </p>
+              <p className="mt-6 text-2xl">Nous avons évité : 4 millions de bouteilles de plastique et <span className="font-extrabold">57 505 t</span>{" "}
+                d&rsquo;émissions d&rsquo;éq. CO₂</p>
             </div>
           </Reveal>
         </div>
