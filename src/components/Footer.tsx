@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Logo from "@/components/Logo";
 import { social, contact, QUOTE_PATH, QUOTE_PATH_FR, getLocale } from "@/lib/site";
 
 const footerLinks = [
@@ -37,7 +36,6 @@ export default function Footer() {
               className="flex items-center gap-2"
               aria-label="O'land Stations home"
             >
-              <Logo className="h-10 w-10" />
               <span className="text-xl font-extrabold tracking-tight">O&rsquo;land Stations</span>
             </Link>
             <p className="mt-4 text-sm text-white/70">
