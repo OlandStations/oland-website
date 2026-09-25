@@ -3,8 +3,10 @@ import {
   detectFormat,
   loadConsolidated,
   loadRangeExport,
+  loadSheet,
   convertTableToLitres,
   convertTable,
+  combineTables,
   sniffUnitsNote,
   findUnitsNoteText,
   dailyTotals,
@@ -16,7 +18,13 @@ import {
   splitEditKey,
   applyEdits,
   parseEditValue,
+  placeholderStationKey,
+  isPlaceholderStation,
+  withPlaceholderStation,
+  stationNameExists,
+  renameStation,
   type SheetData,
+  type UsageTable,
 } from "../parse";
 import { calculateImpact, litresToDisplayVolume, LITRES_PER_US_GALLON } from "../formulas";
 import { fmtExact, sumExact } from "../format";
@@ -133,8 +141,8 @@ describe("applyEdits", () => {
     const key = editKey("Station 1", "2026-08-06");
     const edited = applyEdits(table, { [key]: 250.1 });
     expect(edited.values["2026-08-06"]["Station 1"]).toBe(250.1);
-    expect(edited.values["2026-08-07"]["Station 1"]).toBeCloseTo(table.values["2026-08-07"]["Station 1"], 6);
-    expect(edited.values["2026-08-06"]["Station 2"]).toBeCloseTo(table.values["2026-08-06"]["Station 2"], 6);
+    expect(edited.values["2026-08-07"]["Station 1"]).toBeCloseTo(table.values["2026-08-07"]["Station 1"]!, 6);
+    expect(edited.values["2026-08-06"]["Station 2"]).toBeCloseTo(table.values["2026-08-06"]["Station 2"]!, 6);
   });
 
   it("never mutates the input table", () => {
@@ -181,13 +189,13 @@ describe("computeTableTotals", () => {
     const table = convertTableToLitres(loadConsolidated(FIXTURE_A_SHEET), "gallons");
     const totals = computeTableTotals(table, FIXTURE_A_RANGE.start, FIXTURE_A_RANGE.end);
 
-    const rowSum = totals.rowTotals.reduce((a, r) => a + r.rangeTotal, 0);
+    const rowSum = totals.rowTotals.reduce((a, r) => a + (r.rangeTotal ?? 0), 0);
     const colSum = table.dates
       .filter((d) => d >= FIXTURE_A_RANGE.start && d <= FIXTURE_A_RANGE.end)
-      .reduce((a, d) => a + totals.columnTotals[d], 0);
+      .reduce((a, d) => a + (totals.columnTotals[d] ?? 0), 0);
 
-    expect(fmtExact(rowSum)).toBe(fmtExact(totals.grandTotalInRange));
-    expect(fmtExact(colSum)).toBe(fmtExact(totals.grandTotalInRange));
+    expect(fmtExact(rowSum)).toBe(fmtExact(totals.grandTotalInRange!));
+    expect(fmtExact(colSum)).toBe(fmtExact(totals.grandTotalInRange!));
   });
 
   it("range totals exclude dates outside the selection; full-file totals include them", () => {
@@ -406,5 +414,320 @@ describe("loadRangeExport", () => {
     expect(table.values["2026-08-06"]["Station 1"]).toBe(100);
     expect(table.values["2026-08-07"]["Station 1"]).toBe(30);
     expect(table.values["2026-08-06"]["Station 2"]).toBe(20);
+  });
+
+  it("a station whose every reading has a blank Read_Time still appears — not silently dropped", () => {
+    const sheet: SheetData = {
+      header: ["Location_Name", "Read_Time", "Flow"],
+      rows: [
+        ["Station 1", "2026-08-06 09:00:00", 40],
+        ["Station 2 (offline)", null, null],
+        ["Station 2 (offline)", "", ""],
+      ],
+    };
+    const table = loadRangeExport(sheet);
+    expect(table.stations.sort()).toEqual(["Station 1", "Station 2 (offline)"]);
+    // No usable date could be derived for it, so it has no date cells at
+    // all — but it must still be a station the merged table knows about.
+    expect(table.values["2026-08-06"]["Station 2 (offline)"]).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Regression coverage for: a station with all-null values was silently
+// dropped from the file entirely (loadRangeExport lost it when every one of
+// its readings had a blank Read_Time), and every layer that touched a value
+// defaulted a blank cell to 0, making "no reading" indistinguishable from a
+// measured zero. Fixed by tracking null cells explicitly end-to-end.
+// ---------------------------------------------------------------------------
+describe("all-null station rows are never dropped, and null stays distinct from a measured 0", () => {
+  it("consolidated: a station with every date cell blank still appears, with blank (null) cells", () => {
+    const sheet: SheetData = {
+      header: ["Station", "8/6/2026", "8/7/2026"],
+      rows: [
+        ["Station 1", 100, 200],
+        ["Station 2 (all null)", null, null],
+      ],
+    };
+    const table = loadConsolidated(sheet);
+    expect(table.stations).toEqual(["Station 1", "Station 2 (all null)"]);
+    expect(table.values["2026-08-06"]["Station 2 (all null)"]).toBeNull();
+    expect(table.values["2026-08-07"]["Station 2 (all null)"]).toBeNull();
+    // The real station's own values are completely unaffected.
+    expect(table.values["2026-08-06"]["Station 1"]).toBe(100);
+    expect(table.values["2026-08-07"]["Station 1"]).toBe(200);
+  });
+
+  it("consolidated: an all-null station is still counted in the file's own station/date counts", () => {
+    const sheet: SheetData = {
+      header: ["Station", "8/6/2026", "8/7/2026", "8/8/2026"],
+      rows: [["Station 2 (all null)", null, null, null]],
+    };
+    const table = loadConsolidated(sheet);
+    expect(table.stations).toHaveLength(1);
+    expect(table.dates).toHaveLength(3);
+  });
+
+  it("a mix of null and real values for the same station: nulls stay blank, real values are unaffected", () => {
+    const sheet: SheetData = {
+      header: ["Station", "8/6/2026", "8/7/2026", "8/8/2026"],
+      rows: [["Station 1", 100, null, 300]],
+    };
+    const table = loadConsolidated(sheet);
+    expect(table.values["2026-08-06"]["Station 1"]).toBe(100);
+    expect(table.values["2026-08-07"]["Station 1"]).toBeNull();
+    expect(table.values["2026-08-08"]["Station 1"]).toBe(300);
+  });
+
+  it("3-file upload where one file is entirely null: every station survives the merge, including the all-null one", () => {
+    const fileA = loadConsolidated({
+      header: ["Station", "8/6/2026", "8/7/2026"],
+      rows: [["Main Stage", 500, 600]],
+    });
+    const fileB = loadConsolidated({
+      header: ["Station", "8/6/2026", "8/7/2026"],
+      rows: [["North Gate", 200, 250]],
+    });
+    const fileC = loadConsolidated({
+      header: ["Station", "8/6/2026", "8/7/2026"],
+      rows: [["Food Court (offline all event)", null, null]],
+    });
+
+    const merged = combineTables([fileA, fileB, fileC]);
+
+    expect(merged.stations.sort()).toEqual(["Food Court (offline all event)", "Main Stage", "North Gate"]);
+    expect(merged.values["2026-08-06"]["Food Court (offline all event)"]).toBeNull();
+    expect(merged.values["2026-08-07"]["Food Court (offline all event)"]).toBeNull();
+    // The other two files' real numbers are untouched by the merge.
+    expect(merged.values["2026-08-06"]["Main Stage"]).toBe(500);
+    expect(merged.values["2026-08-06"]["North Gate"]).toBe(200);
+  });
+
+  it("an all-null file uploaded alone still keeps its own dates, with the station present and every cell blank", () => {
+    const soloNullFile = loadConsolidated({
+      header: ["Station", "8/6/2026", "8/7/2026"],
+      rows: [["Food Court (offline all event)", null, null]],
+    });
+    const merged = combineTables([soloNullFile]);
+    expect(merged.stations).toEqual(["Food Court (offline all event)"]);
+    expect(merged.dates).toEqual(["2026-08-06", "2026-08-07"]);
+    expect(merged.values["2026-08-06"]["Food Court (offline all event)"]).toBeNull();
+    expect(merged.values["2026-08-07"]["Food Court (offline all event)"]).toBeNull();
+  });
+
+  it("row/column/grand totals are null (not 0) when every contributing cell is null", () => {
+    const sheet: SheetData = {
+      header: ["Station", "8/6/2026", "8/7/2026"],
+      rows: [
+        ["Main Stage", 500, 600],
+        ["Food Court (all null)", null, null],
+      ],
+    };
+    const table = loadConsolidated(sheet);
+    const totals = computeTableTotals(table, "2026-08-06", "2026-08-07");
+
+    const foodCourt = totals.rowTotals.find((r) => r.station === "Food Court (all null)");
+    expect(foodCourt).toEqual({ station: "Food Court (all null)", rangeTotal: null, fullTotal: null });
+
+    // A real station's row total is completely unaffected.
+    const mainStage = totals.rowTotals.find((r) => r.station === "Main Stage");
+    expect(mainStage).toEqual({ station: "Main Stage", rangeTotal: 1100, fullTotal: 1100 });
+
+    // Column/grand totals still reconcile off only the real numbers —
+    // the all-null station contributes nothing, not a manufactured 0.
+    expect(totals.columnTotals["2026-08-06"]).toBe(500);
+    expect(totals.grandTotalInRange).toBe(1100);
+  });
+
+  it("a column (date) that's null for every station reports null, not 0", () => {
+    const sheet: SheetData = {
+      header: ["Station", "8/6/2026", "8/7/2026"],
+      rows: [["Station 1 (down on the 7th)", 100, null]],
+    };
+    const table = loadConsolidated(sheet);
+    const totals = computeTableTotals(table, "2026-08-06", "2026-08-07");
+    expect(totals.columnTotals["2026-08-06"]).toBe(100);
+    expect(totals.columnTotals["2026-08-07"]).toBeNull();
+  });
+
+  it("gallons->litres conversion never turns a null cell into a measured 0", () => {
+    const table = loadConsolidated({
+      header: ["Station", "8/6/2026"],
+      rows: [["Station 1", null]],
+    });
+    const litres = convertTableToLitres(table, "gallons");
+    expect(litres.values["2026-08-06"]["Station 1"]).toBeNull();
+  });
+
+  it("the 'stop at first blank Station cell' rule still ends the data region correctly, and isn't tripped by a present name with blank values", () => {
+    const sheet: SheetData = {
+      header: ["Station", "8/6/2026"],
+      rows: [
+        ["Station 1", 10],
+        ["Station 2 (all null, name still present)", null],
+        ["", null], // genuinely blank Station name — this ends the data region
+        ["Station 3", 30], // must never be reached
+      ],
+    };
+    const table = loadConsolidated(sheet);
+    expect(table.stations).toEqual(["Station 1", "Station 2 (all null, name still present)"]);
+    expect(table.values["2026-08-06"]["Station 2 (all null, name still present)"]).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Follow-up regression: a file that yields ZERO usable stations at all (a
+// header-only export with no data rows, or every row fails to yield a
+// station name) must still produce exactly one placeholder station, with a
+// REAL editable 0 across every date column in the merged table — not the
+// blank/"—" treatment a real station's null cell gets.
+// ---------------------------------------------------------------------------
+describe("placeholder stations for a file with zero identifiable rows", () => {
+  it("withPlaceholderStation is a no-op for a file that has any real station", () => {
+    const table = loadConsolidated({
+      header: ["Station", "8/6/2026"],
+      rows: [["Station 1", 100]],
+    });
+    const withPlaceholder = withPlaceholderStation(table, "file-1");
+    expect(withPlaceholder).toBe(table); // same reference — nothing changed
+    expect(withPlaceholder.stations.some(isPlaceholderStation)).toBe(false);
+  });
+
+  it("a header-only file (0 data rows) gets exactly one placeholder station, and it's the file's only station", () => {
+    const headerOnly: SheetData = {
+      header: ["Location_Name", "Register_Number", "Endpoint_SN", "Read_Time", "Flow", "Demand_Zone_ID"],
+      rows: [],
+    };
+    const { table } = loadSheet(headerOnly);
+    expect(table.stations).toHaveLength(0); // confirms the loader itself found nothing
+
+    const withPlaceholder = withPlaceholderStation(table, "file-empty");
+    expect(withPlaceholder.stations).toHaveLength(1);
+    expect(isPlaceholderStation(withPlaceholder.stations[0])).toBe(true);
+    expect(withPlaceholder.stations[0]).toBe(placeholderStationKey("file-empty"));
+  });
+
+  it("a mix of real rows and junk rows (at least one real station) does NOT get a placeholder", () => {
+    const table = loadRangeExport({
+      header: ["Location_Name", "Read_Time", "Flow"],
+      rows: [
+        ["Station 1", "2026-08-06 09:00:00", 40],
+        [null, null, null], // junk row — no station name at all
+        ["", "2026-08-06 10:00:00", 5], // junk row — blank station name
+      ],
+    });
+    expect(table.stations).toEqual(["Station 1"]);
+    const withPlaceholder = withPlaceholderStation(table, "file-mixed");
+    expect(withPlaceholder).toBe(table); // unchanged: this file DID register a real station
+    expect(withPlaceholder.stations.some(isPlaceholderStation)).toBe(false);
+  });
+
+  it("3-file merge, one header-only: all three files' stations survive, the placeholder is 0 (not null/blank) across every merged date", () => {
+    const fileA = withPlaceholderStation(
+      loadConsolidated({ header: ["Station", "8/6/2026", "8/7/2026"], rows: [["Main Stage", 500, 600]] }),
+      "file-a"
+    );
+    const fileB = withPlaceholderStation(
+      loadConsolidated({ header: ["Station", "8/6/2026", "8/7/2026"], rows: [["North Gate", 200, 250]] }),
+      "file-b"
+    );
+    const fileC = withPlaceholderStation(
+      loadSheet({
+        header: ["Location_Name", "Register_Number", "Read_Time", "Flow"],
+        rows: [],
+      }).table,
+      "file-c"
+    );
+    expect(fileC.stations).toHaveLength(1); // this file's own summary: 1 station
+
+    const merged = combineTables([fileA, fileB, fileC]);
+    const placeholderKey = placeholderStationKey("file-c");
+
+    expect(merged.stations).toContain(placeholderKey);
+    expect(merged.stations).toHaveLength(3); // never fewer than the number of files
+    expect(merged.values["2026-08-06"][placeholderKey]).toBe(0);
+    expect(merged.values["2026-08-07"][placeholderKey]).toBe(0);
+    // The real stations' own numbers are completely unaffected.
+    expect(merged.values["2026-08-06"]["Main Stage"]).toBe(500);
+    expect(merged.values["2026-08-06"]["North Gate"]).toBe(200);
+
+    // The placeholder's row participates in totals as a real, measured 0 —
+    // not excluded like a genuine null/no-reading cell.
+    const totals = computeTableTotals(merged, "2026-08-06", "2026-08-07");
+    const placeholderRow = totals.rowTotals.find((r) => r.station === placeholderKey);
+    expect(placeholderRow).toEqual({ station: placeholderKey, rangeTotal: 0, fullTotal: 0 });
+  });
+
+  it("editing a placeholder's cell (via the same edit-overlay applyEdits uses) updates its value like any other station", () => {
+    const solo = withPlaceholderStation(
+      loadSheet({ header: ["Location_Name", "Read_Time", "Flow"], rows: [] }).table,
+      "file-solo"
+    );
+    // Give it a date axis the way a real merge would (a lone empty file has
+    // none of its own — see the standalone-file test in the null-fix suite).
+    const withDates: UsageTable = {
+      ...solo,
+      dates: ["2026-08-06"],
+      values: { "2026-08-06": { [solo.stations[0]]: 0 } },
+    };
+    const key = editKey(solo.stations[0], "2026-08-06");
+    const edited = applyEdits(withDates, { [key]: 450 });
+    expect(edited.values["2026-08-06"][solo.stations[0]]).toBe(450);
+  });
+});
+
+describe("stationNameExists / renameStation", () => {
+  it("stationNameExists ignores the station being excluded (so a placeholder never collides with itself)", () => {
+    const table = loadConsolidated({
+      header: ["Station", "8/6/2026"],
+      rows: [["OLS0099", 100]],
+    });
+    const placeholder = placeholderStationKey("file-1");
+    const merged = combineTables([table, withPlaceholderStation({ dates: [], stations: [], values: {} }, "file-1")]);
+    expect(stationNameExists(merged, "OLS0099", placeholder)).toBe(true);
+    expect(stationNameExists(merged, "OLS0099")).toBe(true);
+    expect(stationNameExists(merged, "Some New Name", placeholder)).toBe(false);
+  });
+
+  it("renameStation performs a plain rename when the new name doesn't collide with anything", () => {
+    const placeholder = placeholderStationKey("file-1");
+    const table: UsageTable = {
+      dates: ["2026-08-06", "2026-08-07"],
+      stations: [placeholder],
+      values: { "2026-08-06": { [placeholder]: 0 }, "2026-08-07": { [placeholder]: 0 } },
+    };
+    const renamed = renameStation(table, placeholder, "OLS0099");
+    expect(renamed.stations).toEqual(["OLS0099"]);
+    expect(renamed.values["2026-08-06"]["OLS0099"]).toBe(0);
+    expect(renamed.stations.some(isPlaceholderStation)).toBe(false);
+  });
+
+  it("renaming a placeholder to an existing station's name merges (sums) their cells rather than silently overwriting either", () => {
+    const placeholder = placeholderStationKey("file-1");
+    const table: UsageTable = {
+      dates: ["2026-08-06", "2026-08-07"],
+      stations: ["OLS0099", placeholder],
+      values: {
+        "2026-08-06": { OLS0099: 500, [placeholder]: 0 },
+        "2026-08-07": { OLS0099: 600, [placeholder]: 50 }, // ops already filled in a real reading here
+      },
+    };
+    expect(stationNameExists(table, "OLS0099", placeholder)).toBe(true); // the collision the caller must gate behind confirmation
+
+    const merged = renameStation(table, placeholder, "OLS0099");
+    expect(merged.stations).toEqual(["OLS0099"]); // one row, not two
+    expect(merged.values["2026-08-06"]["OLS0099"]).toBe(500); // 500 + 0
+    expect(merged.values["2026-08-07"]["OLS0099"]).toBe(650); // 600 + 50 — both numbers preserved, summed
+  });
+
+  it("renaming to a null-only (no-reading) existing station's cell still yields the placeholder's real number, not a manufactured sum", () => {
+    const placeholder = placeholderStationKey("file-1");
+    const table: UsageTable = {
+      dates: ["2026-08-06"],
+      stations: ["Offline Station", placeholder],
+      values: { "2026-08-06": { "Offline Station": null, [placeholder]: 75 } },
+    };
+    const merged = renameStation(table, placeholder, "Offline Station");
+    expect(merged.values["2026-08-06"]["Offline Station"]).toBe(75);
   });
 });

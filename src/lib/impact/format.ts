@@ -48,12 +48,21 @@ export type FileProvenance = { name: string; unit: string };
  */
 export type EditProvenance = { station: string; date: string; original: number; edited: number };
 
+/**
+ * One placeholder station given a real name by hand — a file that yielded
+ * no identifiable station gets a blank, editable row, and naming it is a
+ * correction just like a cell edit: it must be disclosed the same way,
+ * not silently absorbed into the report as if the name had always been there.
+ */
+export type RenameProvenance = { before: string; after: string };
+
 export function buildProvenanceText(opts: {
   files: FileProvenance[];
   country: Country;
   start: string;
   end: string;
   edits?: EditProvenance[];
+  renames?: RenameProvenance[];
 }): string {
   const lines: string[] = [];
   lines.push("How this run read the data");
@@ -71,6 +80,13 @@ export function buildProvenanceText(opts: {
   for (const e of opts.edits ?? []) {
     lines.push(`  ${e.station} · ${fmtDay(e.date)} · ${fmtExact(e.original)} → ${fmtExact(e.edited)}`);
   }
+  if ((opts.renames ?? []).length > 0) {
+    lines.push("");
+    lines.push(buildRenamesSummaryLine(opts.renames!));
+    for (const r of opts.renames!) {
+      lines.push(`  ${r.before} → "${r.after}"`);
+    }
+  }
   return lines.join("\n");
 }
 
@@ -80,6 +96,13 @@ export function buildProvenanceText(opts: {
 export function buildEditsSummaryLine(edits: EditProvenance[]): string {
   if (edits.length === 0) return "No manual adjustments.";
   return `${edits.length} value${edits.length === 1 ? "" : "s"} manually adjusted:`;
+}
+
+/** "N station name(s) entered manually" — same pattern as
+ *  buildEditsSummaryLine, for placeholder stations given a real name. */
+export function buildRenamesSummaryLine(renames: RenameProvenance[]): string {
+  if (renames.length === 0) return "";
+  return `${renames.length} station name${renames.length === 1 ? "" : "s"} entered manually:`;
 }
 
 // ---------------------------------------------------------------------------

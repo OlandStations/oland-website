@@ -7,7 +7,9 @@ import {
   buildCo2Summary,
   buildProvenanceText,
   buildEditsSummaryLine,
+  buildRenamesSummaryLine,
   type EditProvenance,
+  type RenameProvenance,
 } from "../format";
 import type { Period } from "../parse";
 
@@ -131,6 +133,38 @@ describe("buildEditsSummaryLine / buildProvenanceText — edits disclosure", () 
   it("omitting `edits` entirely still produces a valid provenance block (treated as no edits)", () => {
     const text = buildProvenanceText(baseOpts);
     expect(text).toContain("No manual adjustments.");
+  });
+});
+
+describe("buildRenamesSummaryLine / buildProvenanceText — placeholder-naming disclosure", () => {
+  const baseOpts = {
+    files: [{ name: "usage.xlsx", unit: "gallons" }],
+    country: "US" as const,
+    start: "2026-01-05",
+    end: "2026-01-08",
+  };
+
+  it("produces nothing when no placeholder was renamed", () => {
+    expect(buildRenamesSummaryLine([])).toBe("");
+    const text = buildProvenanceText({ ...baseOpts, renames: [] });
+    expect(text).not.toContain("entered manually");
+  });
+
+  it("counts and lists every renamed placeholder with its before/after name", () => {
+    const renames: RenameProvenance[] = [{ before: "Unnamed station", after: "OLS0099" }];
+    expect(buildRenamesSummaryLine(renames)).toBe("1 station name entered manually:");
+
+    const text = buildProvenanceText({ ...baseOpts, renames });
+    expect(text).toContain("1 station name entered manually:");
+    expect(text).toContain('Unnamed station → "OLS0099"');
+  });
+
+  it("pluralizes for more than one renamed placeholder", () => {
+    const renames: RenameProvenance[] = [
+      { before: "Unnamed station", after: "OLS0099" },
+      { before: "Unnamed station", after: "OLS0100" },
+    ];
+    expect(buildRenamesSummaryLine(renames)).toBe("2 station names entered manually:");
   });
 });
 

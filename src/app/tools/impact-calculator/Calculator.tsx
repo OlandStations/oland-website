@@ -36,6 +36,11 @@ import {
   applyEdits,
   parseEditValue,
   buildCorrectedAOA,
+  withPlaceholderStation,
+  isPlaceholderStation,
+  stationNameExists,
+  renameStation,
+  PLACEHOLDER_DISPLAY_NAME,
 } from "@/lib/impact/parse";
 import {
   fmtExact,
@@ -46,6 +51,7 @@ import {
   buildCo2Summary,
   type FileProvenance,
   type EditProvenance,
+  type RenameProvenance,
 } from "@/lib/impact/format";
 import { detectAnomalies, type AnomalyFlag } from "@/lib/impact/anomalies";
 import { renderChart, type ChartColors, type ChartItem } from "@/lib/impact/charts";
@@ -84,6 +90,25 @@ function capitalize(s: string): string {
   return s.length ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
+// A null total means "no reading anywhere in this span" — distinct from a
+// measured 0, so it's shown as a dash rather than formatted as a number.
+function cellText(value: number | null): string {
+  return value === null ? "—" : fmtExact(value);
+}
+
+function totalsDiffer(a: number | null, b: number | null): boolean {
+  if (a === null && b === null) return false;
+  return Math.abs((a ?? 0) - (b ?? 0)) > 1e-9;
+}
+
+// A still-unnamed placeholder's internal key is a sentinel, never
+// something to show a person — every read-only surface (charts, chart
+// summaries, exports) shows this instead. The data table itself uses a
+// richer, interactive "click to name" treatment — see DataTable below.
+function displayStationName(station: string): string {
+  return isPlaceholderStation(station) ? PLACEHOLDER_DISPLAY_NAME : station;
+}
+
 function readChartColors(): ChartColors {
   const fallback: ChartColors = {
     bar: "#0099cc",
@@ -115,6 +140,7 @@ export default function Calculator() {
   const [chartStatus, setChartStatus] = useState<Record<string, string>>({});
   const [textStatus, setTextStatus] = useState<Record<string, string>>({});
   const [edits, setEdits] = useState<Record<string, number>>({}); // editKey -> new value, in display units
+  const [placeholderRenames, setPlaceholderRenames] = useState<Record<string, string>>({}); // placeholder key -> user-typed name
 
   const bottlesCanvasRef = useRef<HTMLCanvasElement>(null);
   const stationCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -152,11 +178,26 @@ export default function Calculator() {
   const distinctUnits = new Set(resolvedFiles.map((f) => f.selectedUnit));
   const displayUnit: Unit = usingSample ? "litres" : distinctUnits.size === 1 ? [...distinctUnits][0]! : "litres";
 
-  const baseDisplayTable: UsageTable = useMemo(() => {
+  const combinedRawTable: UsageTable = useMemo(() => {
     if (usingSample) return SAMPLE_TABLE;
     return combineTables(resolvedFiles.map((f) => convertTable(f.table, f.selectedUnit!, displayUnit)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usingSample, resolvedFilesKey, displayUnit]);
+
+  // A placeholder's rename is applied here, on top of the fresh combine —
+  // combineTables always regenerates the SAME raw placeholder key for an
+  // empty file, so re-applying every recorded rename on each recompute is
+  // what makes a rename stick across edits, date-range changes, etc.
+  // Renaming to a name that collides with an existing station merges their
+  // cells (see renameStation) — gated behind a confirmation in the UI below,
+  // never silent.
+  const baseDisplayTable: UsageTable = useMemo(() => {
+    let t = combinedRawTable;
+    for (const [placeholderKey, name] of Object.entries(placeholderRenames)) {
+      if (name && t.stations.includes(placeholderKey)) t = renameStation(t, placeholderKey, name);
+    }
+    return t;
+  }, [combinedRawTable, placeholderRenames]);
 
   // Edits are an overlay over baseDisplayTable — never written back to the
   // uploaded file. Every metric/chart/summary is derived from this table,
@@ -204,7 +245,7 @@ export default function Calculator() {
   const stationRawLitres = dateRange ? stationTotals(combinedTable, dateRange.start, dateRange.end) : [];
   const stationSortedLitres = [...stationRawLitres].sort((a, b) => b[1] - a[1]);
   const stationItems: ChartItem[] = stationSortedLitres.map(([name, litres]) => ({
-    label: name,
+    label: displayStationName(name),
     value: litresToDisplayVolume(litres, country),
   }));
   const showStationChart = stationRawLitres.length > 1;
@@ -256,7 +297,11 @@ export default function Calculator() {
       const id = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       try {
         const { sheet, allText } = await readUsageFile(file);
-        const { format, table } = loadSheet(sheet);
+        const { format, table: rawTable } = loadSheet(sheet);
+        // A file that yields zero usable stations (header-only, or every
+        // row fails to yield a name) still gets exactly one placeholder
+        // station, keyed to this file's own id — never silently dropped.
+        const table = withPlaceholderStation(rawTable, id);
         const detectedUnit = sniffUnitsNote(allText);
         const unitsNoteText = findUnitsNoteText(allText);
         setFiles((prev) => [
@@ -323,6 +368,48 @@ export default function Calculator() {
   }
   function undoAllEdits() {
     setEdits({});
+  }
+
+  // --- Placeholder station naming ---
+  // Attempts a rename. If the typed name doesn't collide with an existing
+  // station, it commits immediately and returns { collides: false }. If it
+  // does collide, it commits NOTHING — the caller (DataTable) must show a
+  // confirmation and call confirmPlaceholderMerge only if the user agrees;
+  // silently combining two stations' numbers is exactly what this must not do.
+  function attemptPlaceholderRename(placeholderKey: string, typedName: string): { collides: boolean } {
+    const trimmed = typedName.trim();
+    if (!trimmed) return { collides: false };
+    if (stationNameExists(baseDisplayTable, trimmed, placeholderKey)) {
+      return { collides: true };
+    }
+    commitPlaceholderRename(placeholderKey, trimmed);
+    return { collides: false };
+  }
+
+  function confirmPlaceholderMerge(placeholderKey: string, typedName: string) {
+    commitPlaceholderRename(placeholderKey, typedName.trim());
+  }
+
+  function commitPlaceholderRename(placeholderKey: string, name: string) {
+    setPlaceholderRenames((prev) => ({ ...prev, [placeholderKey]: name }));
+    // Any edit already made to this placeholder's cells (while it was
+    // still unnamed) is keyed to the OLD sentinel — migrate it to the new
+    // name so it isn't orphaned (which would otherwise resurrect the raw
+    // placeholder key as a stray row once applyEdits ran).
+    setEdits((prev) => {
+      let changed = false;
+      const next: Record<string, number> = {};
+      for (const [key, value] of Object.entries(prev)) {
+        const { station, date } = splitEditKey(key);
+        if (station === placeholderKey) {
+          next[editKey(name, date)] = value;
+          changed = true;
+        } else {
+          next[key] = value;
+        }
+      }
+      return changed ? next : prev;
+    });
   }
 
   // --- Copy / download ---
@@ -401,9 +488,21 @@ export default function Calculator() {
   const editProvenanceList: EditProvenance[] = Object.keys(edits)
     .map((key) => {
       const { station, date } = splitEditKey(key);
-      return { station, date, original: baseDisplayTable.values[date]?.[station] ?? 0, edited: edits[key] };
+      return {
+        station: displayStationName(station),
+        date,
+        original: baseDisplayTable.values[date]?.[station] ?? 0,
+        edited: edits[key],
+      };
     })
     .sort((a, b) => compareISO(a.date, b.date) || a.station.localeCompare(b.station));
+
+  // A placeholder given a real name is disclosed the same way a cell edit
+  // is — only for placeholders still actually present in this merge, so
+  // removing a file doesn't leave a stale rename behind in the report.
+  const renameProvenanceList: RenameProvenance[] = Object.entries(placeholderRenames)
+    .filter(([placeholderKey]) => combinedRawTable.stations.includes(placeholderKey))
+    .map(([, name]) => ({ before: PLACEHOLDER_DISPLAY_NAME, after: name }));
 
   const provenanceText = dateRange
     ? buildProvenanceText({
@@ -412,6 +511,7 @@ export default function Calculator() {
         start: dateRange.start,
         end: dateRange.end,
         edits: editProvenanceList,
+        renames: renameProvenanceList,
       })
     : "";
   const bottlesSummary = dateRange ? buildPeriodSummary(bottlePeriods, impact.bottleUnitLabel) : "";
@@ -686,6 +786,8 @@ export default function Calculator() {
             onCommitEdit={commitEdit}
             onRevertEdit={revertEdit}
             onUndoAll={undoAllEdits}
+            onRenamePlaceholder={attemptPlaceholderRename}
+            onConfirmMergePlaceholder={confirmPlaceholderMerge}
           />
         )}
         {!usingSample && dateRange && (
@@ -803,7 +905,12 @@ export default function Calculator() {
             <textarea
               readOnly
               value={provenanceText}
-              rows={provenanceFiles.length + editProvenanceList.length + 6}
+              rows={
+                provenanceFiles.length +
+                editProvenanceList.length +
+                (renameProvenanceList.length > 0 ? renameProvenanceList.length + 2 : 0) +
+                6
+              }
               className="mt-1 w-full resize-none rounded-md border border-ink/10 bg-offwhite p-3 font-mono text-sm text-ink"
             />
             {textStatus.provenance && <p className="mt-1 text-xs font-semibold text-teal">{textStatus.provenance}</p>}
@@ -909,6 +1016,8 @@ function DataTable({
   onCommitEdit,
   onRevertEdit,
   onUndoAll,
+  onRenamePlaceholder,
+  onConfirmMergePlaceholder,
 }: {
   baseTable: UsageTable;
   editedTable: UsageTable;
@@ -920,10 +1029,15 @@ function DataTable({
   onCommitEdit: (station: string, date: string, value: number) => void;
   onRevertEdit: (station: string, date: string) => void;
   onUndoAll: () => void;
+  onRenamePlaceholder: (placeholderKey: string, typedName: string) => { collides: boolean };
+  onConfirmMergePlaceholder: (placeholderKey: string, typedName: string) => void;
 }) {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [cellError, setCellError] = useState<string | null>(null);
+  const [editingStation, setEditingStation] = useState<string | null>(null);
+  const [stationNameDraft, setStationNameDraft] = useState("");
+  const [pendingMerge, setPendingMerge] = useState<{ station: string; typedName: string } | null>(null);
   const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const { stations, dates } = editedTable;
@@ -962,6 +1076,37 @@ function DataTable({
     setEditingKey(null);
     setCellError(null);
     requestAnimationFrame(() => focusCell(rowIdx, colIdx));
+  }
+
+  function startNaming(station: string) {
+    setEditingStation(station);
+    setStationNameDraft("");
+    setPendingMerge(null);
+  }
+  function commitName(station: string) {
+    const typed = stationNameDraft.trim();
+    if (!typed) {
+      // Nothing typed — stays unnamed, no-op, just leave edit mode.
+      setEditingStation(null);
+      return;
+    }
+    const { collides } = onRenamePlaceholder(station, typed);
+    if (collides) {
+      // Held open, pending an explicit confirmation — never merged silently.
+      setPendingMerge({ station, typedName: typed });
+      return;
+    }
+    setEditingStation(null);
+    setPendingMerge(null);
+  }
+  function confirmMerge() {
+    if (!pendingMerge) return;
+    onConfirmMergePlaceholder(pendingMerge.station, pendingMerge.typedName);
+    setEditingStation(null);
+    setPendingMerge(null);
+  }
+  function cancelMerge() {
+    setPendingMerge(null); // stay in edit mode so the user can type a different name
   }
 
   function jumpToFlag(flag: AnomalyFlag) {
@@ -1025,20 +1170,80 @@ function DataTable({
           <tbody>
             {stations.map((station, rowIdx) => {
               const rowTotal = totals.rowTotals.find((r) => r.station === station);
-              const fullDiffers = !!rowTotal && Math.abs(rowTotal.fullTotal - rowTotal.rangeTotal) > 1e-9;
+              const fullDiffers = !!rowTotal && totalsDiffer(rowTotal.fullTotal, rowTotal.rangeTotal);
               return (
                 <tr key={station}>
                   <th
                     scope="row"
                     className="sticky left-0 z-10 whitespace-nowrap border-b border-r border-ink/10 bg-white px-3 py-1.5 text-left font-semibold text-ink"
                   >
-                    {station}
+                    {isPlaceholderStation(station) ? (
+                      editingStation === station ? (
+                        <div className="relative">
+                          <input
+                            autoFocus
+                            value={stationNameDraft}
+                            onChange={(e) => setStationNameDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                commitName(station);
+                              } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                setEditingStation(null);
+                                setPendingMerge(null);
+                              }
+                            }}
+                            onBlur={() => {
+                              if (!pendingMerge) commitName(station);
+                            }}
+                            placeholder="Type a station name"
+                            aria-label="Name this station"
+                            className="w-40 rounded border border-blue px-2 py-1 text-sm font-semibold text-ink outline-none"
+                          />
+                          {pendingMerge && pendingMerge.station === station && (
+                            <div className="absolute left-0 top-full z-40 mt-1 w-64 rounded bg-coral px-3 py-2 text-xs font-semibold text-white shadow-lg">
+                              A station named &quot;{pendingMerge.typedName}&quot; already exists — naming this
+                              one the same will combine both stations&apos; numbers into one row.
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={confirmMerge}
+                                  className="rounded bg-white px-2 py-1 font-bold text-coral hover:bg-white/90"
+                                >
+                                  Merge anyway
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelMerge}
+                                  className="rounded border border-white px-2 py-1 hover:bg-white/10"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startNaming(station)}
+                          className="italic text-ink/40 underline decoration-dotted hover:text-blue"
+                        >
+                          Unnamed station — click to name
+                        </button>
+                      )
+                    ) : (
+                      station
+                    )}
                   </th>
                   {dates.map((date, colIdx) => {
                     const key = editKey(station, date);
                     const inRange = compareISO(date, dateRange.start) >= 0 && compareISO(date, dateRange.end) <= 0;
-                    const value = editedTable.values[date]?.[station] ?? 0;
-                    const original = baseTable.values[date]?.[station] ?? 0;
+                    // null means "no reading" — distinct from a measured 0 —
+                    // and stays null all the way to the rendered cell text.
+                    const value = editedTable.values[date]?.[station] ?? null;
+                    const original = baseTable.values[date]?.[station] ?? null;
                     const isEdited = key in edits;
                     const flag = flagsByCell.get(key);
                     const isEditing = editingKey === key;
@@ -1078,7 +1283,7 @@ function DataTable({
                             }}
                             tabIndex={0}
                             role="gridcell"
-                            aria-label={`${station}, ${fmtDay(date)}: ${fmtExact(value)}${isEdited ? `, edited from ${fmtExact(original)}` : ""}`}
+                            aria-label={`${station}, ${fmtDay(date)}: ${value === null ? "no reading" : fmtExact(value)}${isEdited ? `, edited from ${original === null ? "no reading" : fmtExact(original)}` : ""}`}
                             onClick={() => startEdit(station, date)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") {
@@ -1098,7 +1303,7 @@ function DataTable({
                                 focusCell(rowIdx, Math.min(dates.length - 1, colIdx + 1));
                               }
                             }}
-                            title={isEdited ? `Original: ${fmtExact(original)}` : undefined}
+                            title={isEdited ? `Original: ${original === null ? "no reading" : fmtExact(original)}` : undefined}
                             className={`flex cursor-text items-center justify-end gap-1.5 px-3 py-1.5 text-right focus:outline focus:outline-2 focus:outline-coral focus:-outline-offset-2 ${
                               isEdited ? "border-l-4 border-coral bg-coral/5" : ""
                             } ${inRange ? "text-ink" : "text-ink/35"}`}
@@ -1108,7 +1313,7 @@ function DataTable({
                                 ▲
                               </span>
                             )}
-                            <span>{fmtExact(value)}</span>
+                            <span className={value === null ? "text-ink/30" : undefined}>{cellText(value)}</span>
                             {isEdited && (
                               <button
                                 type="button"
@@ -1117,7 +1322,7 @@ function DataTable({
                                   onRevertEdit(station, date);
                                 }}
                                 title="Revert to original value"
-                                aria-label={`Revert ${station}, ${fmtDay(date)} to ${fmtExact(original)}`}
+                                aria-label={`Revert ${station}, ${fmtDay(date)} to ${original === null ? "no reading" : fmtExact(original)}`}
                                 className="text-xs text-coral hover:underline"
                               >
                                 ↺
@@ -1129,9 +1334,9 @@ function DataTable({
                     );
                   })}
                   <td className="border-b border-l border-ink/10 px-3 py-1.5 text-right font-semibold text-ink">
-                    {rowTotal ? fmtExact(rowTotal.rangeTotal) : "—"}
+                    {rowTotal ? cellText(rowTotal.rangeTotal) : "—"}
                     {fullDiffers && rowTotal && (
-                      <div className="text-xs font-normal text-ink/40">(all: {fmtExact(rowTotal.fullTotal)})</div>
+                      <div className="text-xs font-normal text-ink/40">(all: {cellText(rowTotal.fullTotal)})</div>
                     )}
                   </td>
                 </tr>
@@ -1148,14 +1353,14 @@ function DataTable({
                 const inRange = compareISO(date, dateRange.start) >= 0 && compareISO(date, dateRange.end) <= 0;
                 return (
                   <td key={date} className="border-t-2 border-ink/10 bg-offwhite px-3 py-1.5 text-right font-bold text-ink">
-                    {inRange ? fmtExact(totals.columnTotals[date] ?? 0) : <span className="font-normal text-ink/30">—</span>}
+                    {inRange ? cellText(totals.columnTotals[date] ?? null) : <span className="font-normal text-ink/30">—</span>}
                   </td>
                 );
               })}
               <td className="border-t-2 border-l border-ink/10 bg-offwhite px-3 py-1.5 text-right font-bold text-ink">
-                {fmtExact(totals.grandTotalInRange)}
-                {Math.abs(totals.grandTotalFullFile - totals.grandTotalInRange) > 1e-9 && (
-                  <div className="text-xs font-normal text-ink/40">(all: {fmtExact(totals.grandTotalFullFile)})</div>
+                {cellText(totals.grandTotalInRange)}
+                {totalsDiffer(totals.grandTotalFullFile, totals.grandTotalInRange) && (
+                  <div className="text-xs font-normal text-ink/40">(all: {cellText(totals.grandTotalFullFile)})</div>
                 )}
               </td>
             </tr>

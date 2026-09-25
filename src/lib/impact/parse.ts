@@ -83,27 +83,128 @@ export function findUnitsNoteText(texts: string[]): string | null {
 export type UsageTable = {
   /** Sorted ascending ISO ("YYYY-MM-DD") dates. */
   dates: string[];
-  /** Station names, first-seen order. */
+  /** Station names, first-seen order. A station is registered here the moment
+   *  its name is seen, independent of whether it has any usable readings —
+   *  see ensureStation. */
   stations: string[];
-  /** values[date][station] = volume, in whatever unit the table currently holds. */
-  values: Record<string, Record<string, number>>;
+  /** values[date][station] = volume, in whatever unit the table currently
+   *  holds. `null` means "no reading" (blank/unparseable cell, or a station
+   *  that simply has no data for this date) — distinct from a measured `0`.
+   *  finalizeTable densifies every table so every station has an entry
+   *  (number or null) for every date, so callers never need to distinguish
+   *  a missing key from an explicit null. */
+  values: Record<string, Record<string, number | null>>;
 };
 
 function emptyTable(): UsageTable {
   return { dates: [], stations: [], values: {} };
 }
 
-function setCell(table: UsageTable, date: string, station: string, value: number): void {
+/** Registers a station even when it has no date/value to attach yet — a
+ *  station with zero usable readings is still a station that was in the file. */
+function ensureStation(table: UsageTable, station: string): void {
+  if (!table.stations.includes(station)) table.stations.push(station);
+}
+
+function setCell(table: UsageTable, date: string, station: string, value: number | null): void {
   if (!table.values[date]) {
     table.values[date] = {};
     table.dates.push(date);
   }
-  if (!table.stations.includes(station)) table.stations.push(station);
+  ensureStation(table, station);
   table.values[date][station] = value;
+}
+
+/** Combines one incoming reading into an existing (possibly absent/null)
+ *  cell. A null reading never overwrites a real number, and never manufactures
+ *  one — it only "wins" when nothing else has contributed a number yet. */
+export function combineCell(existing: number | null | undefined, incoming: number | null): number | null {
+  if (incoming === null) return existing ?? null;
+  return (existing ?? 0) + incoming;
+}
+
+// ---------------------------------------------------------------------------
+// Placeholder stations — for a file that yields zero usable stations (e.g.
+// a header-only export with no data rows, or every row fails to yield a
+// station name). Unlike a null cell (a station that IS identifiable but has
+// no reading), there's no station identity here at all to be honest about,
+// so the file gets exactly one synthetic, editable placeholder row instead
+// of vanishing. U+0001 (not the U+0000 editKey already reserves as its
+// station/date separator) keeps this prefix impossible to collide with a
+// real spreadsheet cell's text OR with an edit key's own parsing.
+// ---------------------------------------------------------------------------
+const PLACEHOLDER_PREFIX = "\u0001placeholder\u0001";
+export const PLACEHOLDER_DISPLAY_NAME = "Unnamed station";
+
+export function placeholderStationKey(fileId: string): string {
+  return `${PLACEHOLDER_PREFIX}${fileId}`;
+}
+
+export function isPlaceholderStation(station: string): boolean {
+  return station.startsWith(PLACEHOLDER_PREFIX);
+}
+
+/** If a file's table has zero usable stations, register exactly one
+ *  placeholder for it, keyed to this file's own (stable) id — "per file,
+ *  not per upload": each empty file gets its own placeholder, independent
+ *  of how many other files are also empty. A file with any real station is
+ *  returned unchanged; this never runs for partial data (some real rows,
+ *  some junk), only for a file that registered nothing at all. */
+export function withPlaceholderStation(table: UsageTable, fileId: string): UsageTable {
+  if (table.stations.length > 0) return table;
+  return { dates: [...table.dates], stations: [placeholderStationKey(fileId)], values: {} };
+}
+
+/** Whether `name` (trimmed) already belongs to a station other than
+ *  `excluding` — the caller's collision check before a placeholder rename,
+ *  so a rename that would fold two stations' numbers together can be
+ *  gated behind a confirmation instead of merging silently. */
+export function stationNameExists(table: UsageTable, name: string, excluding?: string): boolean {
+  const trimmed = name.trim();
+  return table.stations.some((s) => s !== excluding && s === trimmed);
+}
+
+/** Renames `from` to `to` (trimmed). If `to` collides with a station that
+ *  already exists, their cells are combined exactly like combineTables
+ *  combines two files' readings for the same (station, date) — real
+ *  numbers sum, null never manufactures one. Callers MUST gate a colliding
+ *  rename behind an explicit user confirmation; this function performs
+ *  the merge unconditionally the moment it's called. */
+export function renameStation(table: UsageTable, from: string, to: string): UsageTable {
+  const target = to.trim();
+  if (!target || target === from) return table;
+
+  const stations = table.stations.filter((s) => s !== from);
+  if (!stations.includes(target)) stations.push(target);
+
+  const values: UsageTable["values"] = {};
+  for (const date of table.dates) {
+    const row = table.values[date] ?? {};
+    const newRow: Record<string, number | null> = {};
+    for (const station of Object.keys(row)) {
+      if (station === from) continue;
+      newRow[station] = row[station];
+    }
+    if (from in row) {
+      newRow[target] = combineCell(target in newRow ? newRow[target] : undefined, row[from]);
+    }
+    values[date] = newRow;
+  }
+  return finalizeTable({ dates: [...table.dates], stations, values });
 }
 
 function finalizeTable(table: UsageTable): UsageTable {
   table.dates.sort();
+  // Densify: every station gets an explicit entry (number or null) for
+  // every date in the table, so a station that's missing from a given
+  // date (its own file never covered it, or every reading there was
+  // blank) reads as an explicit "no reading" rather than an absent key.
+  for (const date of table.dates) {
+    const row = table.values[date] ?? (table.values[date] = {});
+    for (const station of table.stations) {
+      if (!(station in row)) row[station] = null;
+    }
+  }
   return table;
 }
 
@@ -111,13 +212,16 @@ function isBlank(value: unknown): boolean {
   return value === null || value === undefined || String(value).trim() === "";
 }
 
-function toNumberOrZero(value: unknown): number {
-  if (typeof value === "number") return isFinite(value) ? value : 0;
+/** Blank/unparseable -> null ("no reading"), never a silent 0 — a real
+ *  measured zero and a missing reading are different facts. */
+function toNumberOrNull(value: unknown): number | null {
+  if (isBlank(value)) return null;
+  if (typeof value === "number") return isFinite(value) ? value : null;
   if (typeof value === "string") {
     const n = Number(value.replace(/,/g, "").trim());
-    return isFinite(n) ? n : 0;
+    return isFinite(n) ? n : null;
   }
-  return 0;
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -262,8 +366,12 @@ export function loadConsolidated(sheet: SheetData, fallbackYear = new Date().get
     const station = row[stationIdx];
     if (isBlank(station)) break; // stop at the first blank Station cell
     const stationName = String(station).trim();
+    // Register the station even if it turns out to have zero date columns,
+    // or every one of its cells is blank — a station with no usable
+    // readings is still a station that was in the file.
+    ensureStation(table, stationName);
     for (const { idx, date } of dateCols) {
-      setCell(table, date, stationName, toNumberOrZero(row[idx]));
+      setCell(table, date, stationName, toNumberOrNull(row[idx]));
     }
   }
   return finalizeTable(table);
@@ -282,20 +390,26 @@ export function loadRangeExport(sheet: SheetData): UsageTable {
     throw new Error("loadRangeExport: missing Location_Name, Read_Time, or Flow column.");
   }
 
-  const sums = new Map<string, number>(); // key = `${station}\u0000${date}`
+  const table = emptyTable();
+  const sums = new Map<string, number | null>(); // key = `${station}\u0000${date}`
   const order: string[] = [];
   for (const row of rows) {
     const station = row[locationIdx];
     if (isBlank(station)) continue;
+    const stationName = String(station).trim();
+    // Register the station even if this row — or every row for this
+    // station — has no usable Read_Time to attach a value to.
+    ensureStation(table, stationName);
+
     const date = parseDateTimeToISODate(row[readTimeIdx]);
-    if (!date) continue;
-    const flow = toNumberOrZero(row[flowIdx]);
-    const key = `${String(station).trim()}\u0000${date}`;
+    if (!date) continue; // no usable date on this particular reading
+
+    const flow = toNumberOrNull(row[flowIdx]);
+    const key = `${stationName}\u0000${date}`;
     if (!sums.has(key)) order.push(key);
-    sums.set(key, (sums.get(key) ?? 0) + flow);
+    sums.set(key, combineCell(sums.get(key), flow));
   }
 
-  const table = emptyTable();
   for (const key of order) {
     const [station, date] = key.split("\u0000");
     setCell(table, date, station, sums.get(key)!);
@@ -314,14 +428,16 @@ export function loadSheet(sheet: SheetData): { format: DetectedFormat; table: Us
 // ---------------------------------------------------------------------------
 
 /** Converts a table to litres. Gallons files are converted here, at the load
- *  boundary, so everything downstream stays in litres. */
+ *  boundary, so everything downstream stays in litres. A null cell (no
+ *  reading) stays null — it must never turn into a measured 0 x factor. */
 export function convertTableToLitres(table: UsageTable, unit: Unit): UsageTable {
   if (unit === "litres") return table;
   const out: UsageTable = { dates: [...table.dates], stations: [...table.stations], values: {} };
   for (const date of table.dates) {
     out.values[date] = {};
     for (const station of Object.keys(table.values[date])) {
-      out.values[date][station] = table.values[date][station] * LITRES_PER_US_GALLON;
+      const v = table.values[date][station];
+      out.values[date][station] = v === null ? null : v * LITRES_PER_US_GALLON;
     }
   }
   return out;
@@ -333,7 +449,8 @@ function scaleTable(table: UsageTable, factor: number): UsageTable {
   for (const date of table.dates) {
     out.values[date] = {};
     for (const station of Object.keys(table.values[date])) {
-      out.values[date][station] = table.values[date][station] * factor;
+      const v = table.values[date][station];
+      out.values[date][station] = v === null ? null : v * factor;
     }
   }
   return out;
@@ -346,18 +463,44 @@ export function convertTable(table: UsageTable, from: Unit, to: Unit): UsageTabl
   return scaleTable(table, 1 / LITRES_PER_US_GALLON); // to === "gallons", from === "litres"
 }
 
-/** Sums overlapping (date, station) cells across files; missing cells count as 0. */
+/** Sums overlapping (date, station) cells across files. A station — and a
+ *  date — is registered in the combined table even when every reading for
+ *  it, in every file, is null: a null cell never gets manufactured into a
+ *  0, but it also must never make an otherwise-real date or station vanish. */
 export function combineTables(tables: UsageTable[]): UsageTable {
   const combined = emptyTable();
   for (const table of tables) {
+    for (const station of table.stations) ensureStation(combined, station);
+  }
+  for (const table of tables) {
     for (const date of table.dates) {
+      // Registered up front, independent of whether any cell on this date
+      // turns out to hold a real number below.
+      if (!combined.values[date]) {
+        combined.values[date] = {};
+        combined.dates.push(date);
+      }
       for (const station of Object.keys(table.values[date])) {
+        const incoming = table.values[date][station];
+        if (incoming === null) continue; // no reading in this file for this cell — don't manufacture a zero
         const prev = combined.values[date]?.[station] ?? 0;
-        setCell(combined, date, station, prev + table.values[date][station]);
+        setCell(combined, date, station, prev + incoming);
       }
     }
   }
-  return finalizeTable(combined);
+  const result = finalizeTable(combined);
+
+  // A placeholder station (a file with zero usable rows) has no readings
+  // to be honest about — there's no "no data" gap to preserve, only a
+  // blank row for ops to fill in by hand. So unlike a real station's null
+  // cell, every date column gets a REAL, editable 0.
+  for (const station of result.stations) {
+    if (!isPlaceholderStation(station)) continue;
+    for (const date of result.dates) {
+      if (result.values[date][station] === null) result.values[date][station] = 0;
+    }
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -411,10 +554,14 @@ export function fmtMonthYear(iso: string): string {
 // ---------------------------------------------------------------------------
 // Daily / station totals + granularity + period aggregation
 // ---------------------------------------------------------------------------
+/** A null cell (no reading) contributes 0 to a sum — it's the arithmetic
+ *  identity, and every headline/chart figure sums this way. It's only at
+ *  the data-table display layer (computeTableTotals) that "no reading
+ *  anywhere" needs to be told apart from "measured zero". */
 export function dailyTotals(table: UsageTable): Record<string, number> {
   const out: Record<string, number> = {};
   for (const date of table.dates) {
-    out[date] = Object.values(table.values[date]).reduce((a, b) => a + b, 0);
+    out[date] = Object.values(table.values[date]).reduce((a: number, b) => a + (b ?? 0), 0);
   }
   return out;
 }
@@ -426,7 +573,7 @@ export function stationTotals(table: UsageTable, start: string, end: string): Ar
   for (const date of table.dates) {
     if (compareISO(date, start) < 0 || compareISO(date, end) > 0) continue;
     for (const [station, value] of Object.entries(table.values[date])) {
-      totals.set(station, (totals.get(station) ?? 0) + value);
+      totals.set(station, (totals.get(station) ?? 0) + (value ?? 0));
     }
   }
   return table.stations.map((s) => [s, totals.get(s) ?? 0]);
@@ -435,33 +582,59 @@ export function stationTotals(table: UsageTable, start: string, end: string): Ar
 export type TableTotals = {
   /** One entry per station, in table order — rangeTotal sums only [start,
    *  end]; fullTotal sums every date in the table, so a differing full-file
-   *  total (e.g. pre-event days) can be shown alongside it. */
-  rowTotals: Array<{ station: string; rangeTotal: number; fullTotal: number }>;
+   *  total (e.g. pre-event days) can be shown alongside it. `null` means no
+   *  cell in that span had a reading at all — distinct from a measured 0,
+   *  and the caller should show a dash rather than "0". */
+  rowTotals: Array<{ station: string; rangeTotal: number | null; fullTotal: number | null }>;
   /** Per-date total across all stations, for every date in the table —
    *  callers decide how to treat out-of-range dates (e.g. a dash instead
    *  of a number in a totals row), this just reports the arithmetic. */
-  columnTotals: Record<string, number>;
-  grandTotalInRange: number;
-  grandTotalFullFile: number;
+  columnTotals: Record<string, number | null>;
+  grandTotalInRange: number | null;
+  grandTotalFullFile: number | null;
 };
+
+/** Sums only the real readings in `cells`; returns null if none of them
+ *  were real (all null/missing) rather than manufacturing a 0 total. */
+function sumCells(cells: Array<number | null | undefined>): number | null {
+  let total: number | null = null;
+  for (const c of cells) {
+    if (c === null || c === undefined) continue;
+    total = (total ?? 0) + c;
+  }
+  return total;
+}
+
+function cellsInRange(table: UsageTable, station: string, start: string, end: string): Array<number | null> {
+  const cells: Array<number | null> = [];
+  for (const date of table.dates) {
+    if (compareISO(date, start) < 0 || compareISO(date, end) > 0) continue;
+    cells.push(table.values[date]?.[station] ?? null);
+  }
+  return cells;
+}
 
 /** Row/column/grand totals for a data table — the numbers behind an
  *  editable spreadsheet-style view. Range totals exclude dates outside
- *  [start, end]; full-file totals never do. */
+ *  [start, end]; full-file totals never do. A row/column/grand total is
+ *  null (not 0) when every contributing cell was itself null. */
 export function computeTableTotals(table: UsageTable, start: string, end: string): TableTotals {
-  const rangeTotals = stationTotals(table, start, end);
-  const fullRange = table.dates.length ? [table.dates[0], table.dates[table.dates.length - 1]] : [start, end];
-  const fullTotals = new Map(stationTotals(table, fullRange[0], fullRange[1]));
+  const fullStart = table.dates[0] ?? start;
+  const fullEnd = table.dates[table.dates.length - 1] ?? end;
 
-  const rowTotals = rangeTotals.map(([station, rangeTotal]) => ({
+  const rowTotals = table.stations.map((station) => ({
     station,
-    rangeTotal,
-    fullTotal: fullTotals.get(station) ?? rangeTotal,
+    rangeTotal: sumCells(cellsInRange(table, station, start, end)),
+    fullTotal: sumCells(cellsInRange(table, station, fullStart, fullEnd)),
   }));
 
-  const columnTotals = dailyTotals(table);
-  const grandTotalInRange = rowTotals.reduce((a, r) => a + r.rangeTotal, 0);
-  const grandTotalFullFile = rowTotals.reduce((a, r) => a + r.fullTotal, 0);
+  const columnTotals: Record<string, number | null> = {};
+  for (const date of table.dates) {
+    columnTotals[date] = sumCells(table.stations.map((s) => table.values[date]?.[s] ?? null));
+  }
+
+  const grandTotalInRange = sumCells(rowTotals.map((r) => r.rangeTotal));
+  const grandTotalFullFile = sumCells(rowTotals.map((r) => r.fullTotal));
 
   return { rowTotals, columnTotals, grandTotalInRange, grandTotalFullFile };
 }
@@ -588,8 +761,13 @@ export function parseEditValue(text: string): { ok: true; value: number } | { ok
 export function buildCorrectedAOA(table: UsageTable, unitsNoteText?: string | null): unknown[][] {
   const header = ["Station", ...table.dates.map((d) => fmtDate(d))];
   const rows = table.stations.map((station) => [
-    station,
-    ...table.dates.map((d) => table.values[d]?.[station] ?? 0),
+    // A still-unnamed placeholder exports under its friendly label — the
+    // internal key is a sentinel, never something a person should see.
+    isPlaceholderStation(station) ? PLACEHOLDER_DISPLAY_NAME : station,
+    // A null cell (no reading) exports as a blank cell, not a 0 — the
+    // corrected workbook must not re-introduce the exact ambiguity this
+    // table format exists to avoid.
+    ...table.dates.map((d) => table.values[d]?.[station] ?? null),
   ]);
   const aoa: unknown[][] = [header, ...rows];
   if (unitsNoteText) {
