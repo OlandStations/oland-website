@@ -54,7 +54,7 @@ import {
   type RenameProvenance,
 } from "@/lib/impact/format";
 import { detectAnomalies, type AnomalyFlag } from "@/lib/impact/anomalies";
-import { renderChart, type ChartColors, type ChartItem } from "@/lib/impact/charts";
+import { renderChart, hexToRgba, type ChartColors, type ChartItem } from "@/lib/impact/charts";
 
 const COUNTRY_STORAGE_KEY = "oland:impact-calculator:country";
 
@@ -131,6 +131,38 @@ function readChartColors(): ChartColors {
   };
 }
 
+// The 6 brand colors the chart color pickers are constrained to — palette
+// swatches only, no free-form hex input, so a recolored chart always stays
+// on-brand. Each references its existing @theme token in globals.css (the
+// same tokens readChartColors() above already reads) as the single source
+// of truth, rather than re-typing hex values here.
+type PaletteColor = { label: string; hex: string; lowContrast: boolean };
+
+// Off-white and light grey are near-white and read as almost invisible
+// against the chart's near-white surface — flagged as this specific pair
+// (not a generic contrast-ratio check) since Tan is also fairly light but
+// reads fine against that same surface.
+const CHART_PALETTE_TOKENS: Array<{ label: string; token: string; fallbackHex: string; lowContrast: boolean }> = [
+  { label: "Teal", token: "--color-teal", fallbackHex: "#6bbbae", lowContrast: false },
+  { label: "Blue", token: "--color-blue", fallbackHex: "#0099cc", lowContrast: false },
+  { label: "Off-white", token: "--color-nearwhite", fallbackHex: "#fcfcfd", lowContrast: true },
+  { label: "Light grey", token: "--color-offwhite", fallbackHex: "#f2f2f1", lowContrast: true },
+  { label: "Tan", token: "--color-sand", fallbackHex: "#ebdac6", lowContrast: false },
+  { label: "Navy", token: "--color-steel", fallbackHex: "#3776a3", lowContrast: false },
+];
+
+function readChartPalette(): PaletteColor[] {
+  if (typeof window === "undefined") {
+    return CHART_PALETTE_TOKENS.map((t) => ({ label: t.label, hex: t.fallbackHex, lowContrast: t.lowContrast }));
+  }
+  const style = getComputedStyle(document.documentElement);
+  return CHART_PALETTE_TOKENS.map((t) => ({
+    label: t.label,
+    hex: (style.getPropertyValue(t.token).trim() || t.fallbackHex).toLowerCase(),
+    lowContrast: t.lowContrast,
+  }));
+}
+
 export default function Calculator() {
   const [files, setFiles] = useState<LoadedFile[]>([]);
   const [country, setCountry] = useState<Country>("CA");
@@ -141,6 +173,15 @@ export default function Calculator() {
   const [textStatus, setTextStatus] = useState<Record<string, string>>({});
   const [edits, setEdits] = useState<Record<string, number>>({}); // editKey -> new value, in display units
   const [placeholderRenames, setPlaceholderRenames] = useState<Record<string, string>>({}); // placeholder key -> user-typed name
+
+  // Chart color choices — component state only, same lifetime as edits/
+  // date-range/units: never localStorage, never survives a fresh file load.
+  // null = still the default. Per-station is keyed by the station's raw
+  // table key (not its display label), so two still-unnamed placeholders —
+  // which share the same "Unnamed station" label — can't collide.
+  const [bottlesColor, setBottlesColor] = useState<string | null>(null);
+  const [co2Color, setCo2Color] = useState<string | null>(null);
+  const [stationColors, setStationColors] = useState<Record<string, string>>({});
 
   const bottlesCanvasRef = useRef<HTMLCanvasElement>(null);
   const stationCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -230,6 +271,11 @@ export default function Calculator() {
     }
     setGranularityOverride(null);
     setEdits({});
+    // Chart color choices share edits' lifetime, per the tool's existing
+    // no-persistence rule — a fresh file (or unit change) resets them too.
+    setBottlesColor(null);
+    setCo2Color(null);
+    setStationColors({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usingSample, resolvedFilesKey, displayUnit]);
 
@@ -247,6 +293,7 @@ export default function Calculator() {
   const stationItems: ChartItem[] = stationSortedLitres.map(([name, litres]) => ({
     label: displayStationName(name),
     value: litresToDisplayVolume(litres, country),
+    color: stationColors[name],
   }));
   const showStationChart = stationRawLitres.length > 1;
 
@@ -261,7 +308,18 @@ export default function Calculator() {
   const tableTotals: TableTotals | null = dateRange ? computeTableTotals(editedDisplayTable, dateRange.start, dateRange.end) : null;
   const anomalyFlags: AnomalyFlag[] = dateRange ? detectAnomalies(editedDisplayTable, dateRange.start, dateRange.end) : [];
 
+  // Palette + the resolved default bar color, for the swatch pickers below
+  // — read once (the tokens don't change mid-session) rather than on every
+  // render, same reasoning as readChartColors() itself.
+  const chartPalette = useMemo(() => readChartPalette(), []);
+  const defaultBarHex = useMemo(() => readChartColors().bar, []);
+
   // --- Render the three charts onto <canvas> whenever their inputs change ---
+  // A picked color overrides colors.bar for that one chart; the by-station
+  // chart instead carries its overrides per-item (see stationItems above),
+  // since it's one bar per station rather than one series for the whole
+  // chart. The CO2 area fill is re-derived from its line color at the same
+  // 10% opacity the default fill already uses, so the two always match.
   useEffect(() => {
     if (!dateRange || !granularity) return;
     const colors = readChartColors();
@@ -270,7 +328,7 @@ export default function Calculator() {
       renderChart(bottlesCanvasRef.current, "bar", bottlePeriods, {
         yAxisLabel: `${capitalize(impact.bottleUnitLabel)} Avoided`,
         xAxisLabel: capitalize(granularity),
-        colors,
+        colors: bottlesColor ? { ...colors, bar: bottlesColor } : colors,
       });
     }
     if (stationCanvasRef.current && showStationChart) {
@@ -284,11 +342,23 @@ export default function Calculator() {
       renderChart(co2CanvasRef.current, "line", co2Cumulative, {
         yAxisLabel: "CO2 Avoided (kg)",
         xAxisLabel: capitalize(granularity),
-        colors,
+        colors: co2Color ? { ...colors, bar: co2Color, areaFill: hexToRgba(co2Color, 0.1) } : colors,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange?.start, dateRange?.end, granularity, country, showStationChart, resolvedFilesKey, usingSample, edits]);
+  }, [
+    dateRange?.start,
+    dateRange?.end,
+    granularity,
+    country,
+    showStationChart,
+    resolvedFilesKey,
+    usingSample,
+    edits,
+    bottlesColor,
+    co2Color,
+    stationColors,
+  ]);
 
   // --- File loading ---
   async function handleFiles(fileList: FileList | File[]) {
@@ -410,6 +480,22 @@ export default function Calculator() {
       }
       return changed ? next : prev;
     });
+    // Same reasoning for a chart color already picked for this placeholder
+    // while it was still unnamed — otherwise the color silently reverts to
+    // default the moment the row's key changes out from under it.
+    setStationColors((prev) => {
+      if (!(placeholderKey in prev)) return prev;
+      const { [placeholderKey]: color, ...rest } = prev;
+      return { ...rest, [name]: color };
+    });
+  }
+
+  // --- Chart colors ---
+  const hasCustomChartColors = bottlesColor !== null || co2Color !== null || Object.keys(stationColors).length > 0;
+  function resetChartColors() {
+    setBottlesColor(null);
+    setCo2Color(null);
+    setStationColors({});
   }
 
   // --- Copy / download ---
@@ -835,7 +921,18 @@ export default function Calculator() {
 
       {/* --- Charts --- */}
       <section className="mt-10 space-y-6">
-        <h2 className="text-lg font-bold text-ink">6. Charts</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-ink">6. Charts</h2>
+          {hasCustomChartColors && (
+            <button
+              type="button"
+              onClick={resetChartColors}
+              className="rounded-md border border-ink/20 px-3 py-1 text-xs font-semibold text-ink hover:bg-ink/5"
+            >
+              Reset colors
+            </button>
+          )}
+        </div>
         {!dateRange ? (
           <p className="text-sm text-ink/60">Select a date range above to render charts.</p>
         ) : (
@@ -850,6 +947,14 @@ export default function Calculator() {
               summary={bottlesSummary}
               summaryStatus={textStatus.bottles}
               onCopySummary={() => copyText("bottles", bottlesSummary)}
+              colorControl={
+                <ColorSwatchRow
+                  palette={chartPalette}
+                  activeHex={bottlesColor ?? defaultBarHex}
+                  onSelect={setBottlesColor}
+                  label="Color"
+                />
+              }
             />
 
             {showStationChart ? (
@@ -863,6 +968,19 @@ export default function Calculator() {
                 summary={stationSummary}
                 summaryStatus={textStatus.station}
                 onCopySummary={() => copyText("station", stationSummary)}
+                colorControl={
+                  <div className="space-y-2">
+                    {stationSortedLitres.map(([name]) => (
+                      <ColorSwatchRow
+                        key={name}
+                        palette={chartPalette}
+                        activeHex={stationColors[name] ?? defaultBarHex}
+                        onSelect={(hex) => setStationColors((prev) => ({ ...prev, [name]: hex }))}
+                        label={displayStationName(name)}
+                      />
+                    ))}
+                  </div>
+                }
               />
             ) : (
               <div className="rounded-xl border border-ink/10 bg-white p-5">
@@ -881,6 +999,14 @@ export default function Calculator() {
               summary={co2Summary}
               summaryStatus={textStatus.co2}
               onCopySummary={() => copyText("co2", co2Summary)}
+              colorControl={
+                <ColorSwatchRow
+                  palette={chartPalette}
+                  activeHex={co2Color ?? defaultBarHex}
+                  onSelect={setCo2Color}
+                  label="Color"
+                />
+              }
             />
           </>
         )}
@@ -941,6 +1067,7 @@ function ChartCard({
   summary,
   onCopySummary,
   summaryStatus,
+  colorControl,
 }: {
   title: string;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -951,6 +1078,7 @@ function ChartCard({
   summary: string;
   onCopySummary: () => void;
   summaryStatus?: string;
+  colorControl?: React.ReactNode;
 }) {
   return (
     <div className="rounded-xl border border-ink/10 bg-white p-5">
@@ -981,6 +1109,8 @@ function ChartCard({
         <canvas ref={canvasRef} />
       </div>
 
+      {colorControl && <div className="mt-3">{colorControl}</div>}
+
       <div className="mt-4">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-widest text-steel">Summary</span>
@@ -996,6 +1126,54 @@ function ChartCard({
         />
         {summaryStatus && <p className="mt-1 text-xs font-semibold text-teal">{summaryStatus}</p>}
       </div>
+    </div>
+  );
+}
+
+// Palette-swatch color picker for one chart series. Palette-only (no
+// free-form hex input) so a recolored chart stays on-brand. `activeHex` is
+// always the color actually in effect right now — the default when
+// nothing's been picked yet — so the matching swatch reads as selected
+// from the start, not just after an explicit click.
+function ColorSwatchRow({
+  palette,
+  activeHex,
+  onSelect,
+  label,
+}: {
+  palette: { label: string; hex: string; lowContrast: boolean }[];
+  activeHex: string;
+  onSelect: (hex: string) => void;
+  label?: string;
+}) {
+  const active = palette.find((p) => p.hex === activeHex.toLowerCase());
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {label && <span className="text-xs font-semibold text-ink/70">{label}</span>}
+      <div className="flex gap-1.5" role="group" aria-label={label ? `Color for ${label}` : "Chart color"}>
+        {palette.map((p) => {
+          const isActive = p.hex === activeHex.toLowerCase();
+          return (
+            <button
+              key={p.hex}
+              type="button"
+              onClick={() => onSelect(p.hex)}
+              title={p.label}
+              aria-label={p.label}
+              aria-pressed={isActive}
+              style={{ backgroundColor: p.hex }}
+              className={`h-6 w-6 rounded-full border-2 transition-shadow ${
+                isActive ? "border-ink ring-2 ring-blue ring-offset-1" : "border-ink/15 hover:border-ink/40"
+              }`}
+            />
+          );
+        })}
+      </div>
+      {active?.lowContrast && (
+        <span className="text-xs font-semibold text-coral">
+          This color has low contrast against the chart background.
+        </span>
+      )}
     </div>
   );
 }

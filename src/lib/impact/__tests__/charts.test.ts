@@ -1,6 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { niceTicks, computeBarLayout, computeLineLayout } from "../charts";
-import type { ChartItem } from "../charts";
+import { niceTicks, computeBarLayout, computeLineLayout, drawBarChart, drawLineChart, hexToRgba } from "../charts";
+import type { ChartItem, ChartColors } from "../charts";
+
+// This project's Vitest environment is Node (no DOM/canvas — see
+// vitest.config.ts and the "draw functions... aren't unit-tested
+// directly" note atop charts.ts). A real <canvas> 2D context isn't
+// available here, so this mock records every method call and property
+// assignment CanvasRenderingContext2D would receive, without needing one.
+// Asserting the exact fillStyle/strokeStyle values the draw functions set
+// is the closest available proxy for "what the exported PNG will show" —
+// canvas.toBlob() serializes exactly what these calls painted.
+type MockCall = { name: string; value?: unknown; args?: unknown[] };
+function createMockContext(): { ctx: CanvasRenderingContext2D; calls: MockCall[] } {
+  const calls: MockCall[] = [];
+  const ctx = new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        if (typeof prop !== "string") return undefined;
+        return (...args: unknown[]) => {
+          calls.push({ name: prop, args });
+        };
+      },
+      set(_target, prop, value) {
+        if (typeof prop === "string") calls.push({ name: prop, value });
+        return true;
+      },
+    }
+  ) as unknown as CanvasRenderingContext2D;
+  return { ctx, calls };
+}
+
+const BASE_COLORS: ChartColors = {
+  bar: "#0099cc",
+  surface: "#fcfcfd",
+  grid: "#f2f2f1",
+  areaFill: "rgba(0, 153, 204, 0.1)",
+  textPrimary: "#1a1a1a",
+  textSecondary: "#4a4a4a",
+};
 
 describe("niceTicks", () => {
   it("returns a placeholder tick for a zero/empty series", () => {
@@ -47,6 +85,114 @@ describe("computeBarLayout", () => {
     const labeled = layout.bars.filter((b) => b.showValueLabel);
     expect(labeled).toHaveLength(1);
     expect(labeled[0].value).toBe(999);
+  });
+
+  it("propagates each item's optional per-series color onto its own bar, leaving others undefined", () => {
+    const withColors: ChartItem[] = [
+      { label: "Station A", value: 100, color: "#111111" },
+      { label: "Station B", value: 200 },
+      { label: "Station C", value: 150, color: "#333333" },
+    ];
+    const layout = computeBarLayout(withColors);
+    expect(layout.bars[0].color).toBe("#111111");
+    expect(layout.bars[1].color).toBeUndefined();
+    expect(layout.bars[2].color).toBe("#333333");
+  });
+});
+
+describe("hexToRgba", () => {
+  it("converts a 6-digit hex to rgba at the given alpha — matches the existing default CO2 fill derivation", () => {
+    expect(hexToRgba("#0099cc", 0.1)).toBe("rgba(0, 153, 204, 0.1)");
+  });
+
+  it("works without a leading #", () => {
+    expect(hexToRgba("0099cc", 0.1)).toBe("rgba(0, 153, 204, 0.1)");
+  });
+
+  it("expands a 3-digit shorthand hex", () => {
+    expect(hexToRgba("#0cc", 0.5)).toBe("rgba(0, 204, 204, 0.5)");
+  });
+});
+
+describe("drawBarChart — per-bar color override flows into what actually gets painted", () => {
+  it("default rendering (no item sets a color) paints every bar with colors.bar, unchanged from before this feature", () => {
+    const items: ChartItem[] = [
+      { label: "Aug 6", value: 100 },
+      { label: "Aug 7", value: 200 },
+    ];
+    const layout = computeBarLayout(items);
+    const { ctx, calls } = createMockContext();
+    drawBarChart(ctx, layout, { yAxisLabel: "Y", xAxisLabel: "X", colors: BASE_COLORS });
+
+    const fillStyleValues = calls.filter((c) => c.name === "fillStyle").map((c) => c.value);
+    // Never any color other than the default bar color used for bar fills
+    // specifically (text/surface use their own distinct colors, which is fine).
+    expect(fillStyleValues).toContain(BASE_COLORS.bar);
+  });
+
+  it("uses a bar's own color when set, and falls back to colors.bar when not — one export, mixed colors", () => {
+    const items: ChartItem[] = [
+      { label: "Station A", value: 100, color: "#111111" },
+      { label: "Station B", value: 200 }, // no override
+      { label: "Station C", value: 150, color: "#333333" },
+    ];
+    const layout = computeBarLayout(items);
+    const { ctx, calls } = createMockContext();
+    drawBarChart(ctx, layout, { yAxisLabel: "Y", xAxisLabel: "X", colors: BASE_COLORS });
+
+    const fillStyleValues = calls.filter((c) => c.name === "fillStyle").map((c) => c.value);
+    expect(fillStyleValues).toContain("#111111");
+    expect(fillStyleValues).toContain("#333333");
+    expect(fillStyleValues).toContain(BASE_COLORS.bar); // Station B's fallback
+  });
+
+  it("recoloring one bar never touches another bar's color", () => {
+    const items: ChartItem[] = [
+      { label: "Station A", value: 100, color: "#111111" },
+      { label: "Station B", value: 200, color: "#222222" },
+    ];
+    const layout = computeBarLayout(items);
+    expect(layout.bars[0].color).toBe("#111111");
+    expect(layout.bars[1].color).toBe("#222222");
+    // Changing A's color in a fresh call leaves B's completely untouched.
+    const recolored = computeBarLayout([{ ...items[0], color: "#999999" }, items[1]]);
+    expect(recolored.bars[0].color).toBe("#999999");
+    expect(recolored.bars[1].color).toBe("#222222");
+  });
+});
+
+describe("drawLineChart — line color and its derived area fill both flow into what actually gets painted", () => {
+  it("default rendering uses colors.bar for the line/markers and colors.areaFill for the fill, unchanged", () => {
+    const items: ChartItem[] = [
+      { label: "Aug 6", value: 100 },
+      { label: "Aug 7", value: 200 },
+    ];
+    const layout = computeLineLayout(items);
+    const { ctx, calls } = createMockContext();
+    drawLineChart(ctx, layout, { yAxisLabel: "Y", xAxisLabel: "X", colors: BASE_COLORS });
+
+    expect(calls.some((c) => c.name === "strokeStyle" && c.value === BASE_COLORS.bar)).toBe(true);
+    expect(calls.some((c) => c.name === "fillStyle" && c.value === BASE_COLORS.areaFill)).toBe(true);
+  });
+
+  it("a custom line color and its hexToRgba-derived fill both reach the actual draw calls", () => {
+    const items: ChartItem[] = [
+      { label: "Aug 6", value: 100 },
+      { label: "Aug 7", value: 200 },
+    ];
+    const layout = computeLineLayout(items);
+    const { ctx, calls } = createMockContext();
+    const customColors: ChartColors = {
+      ...BASE_COLORS,
+      bar: "#6bbbae",
+      areaFill: hexToRgba("#6bbbae", 0.1),
+    };
+    drawLineChart(ctx, layout, { yAxisLabel: "Y", xAxisLabel: "X", colors: customColors });
+
+    expect(calls.some((c) => c.name === "strokeStyle" && c.value === "#6bbbae")).toBe(true);
+    expect(calls.some((c) => c.name === "fillStyle" && c.value === "rgba(107, 187, 174, 0.1)")).toBe(true);
+    // The old default blue must not leak through when a custom color is used.
+    expect(calls.some((c) => c.name === "strokeStyle" && c.value === BASE_COLORS.bar)).toBe(false);
   });
 });
 

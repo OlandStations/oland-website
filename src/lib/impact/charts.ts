@@ -20,7 +20,11 @@
 import type { Period } from "./parse";
 import { fmtExact } from "./format";
 
-export type ChartItem = Period;
+/** `color`, when set, overrides `colors.bar` for just this one item — used
+ *  by the by-station chart, where each bar is its own series with its own
+ *  color choice. Bottles-by-period and CO2 are a single series each and
+ *  never set this; they're recolored via `colors.bar` itself instead. */
+export type ChartItem = Period & { color?: string };
 
 export type ChartColors = {
   bar: string;
@@ -30,6 +34,19 @@ export type ChartColors = {
   textPrimary: string;
   textSecondary: string;
 };
+
+/** Converts a `#rgb`/`#rrggbb` hex string to an `rgba(...)` string at the
+ *  given alpha — the same derivation already used for the default CO2
+ *  area fill (the brand blue at 10% opacity), generalized to any brand
+ *  color so a custom line color gets a matching fill. */
+export function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.trim().replace(/^#/, "");
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 const CHART_HEIGHT = 300;
 const WRAP_PADDING_X = 48;
@@ -97,7 +114,14 @@ export type BarLayout = {
   originY: number;
   ticks: number[];
   top: number;
-  bars: Array<{ centerX: number; height: number; value: number; label: string; showValueLabel: boolean }>;
+  bars: Array<{
+    centerX: number;
+    height: number;
+    value: number;
+    label: string;
+    showValueLabel: boolean;
+    color?: string;
+  }>;
 };
 
 export function computeBarLayout(items: ChartItem[]): BarLayout {
@@ -113,7 +137,14 @@ export function computeBarLayout(items: ChartItem[]): BarLayout {
   const bars = items.map((item, i) => {
     const height = top ? Math.round((item.value / top) * CHART_HEIGHT * 10) / 10 : 0;
     const showValueLabel = !labelMany || item.value === maxVal;
-    return { centerX: (i + 0.5) * colWidth, height, value: item.value, label: item.label, showValueLabel };
+    return {
+      centerX: (i + 0.5) * colWidth,
+      height,
+      value: item.value,
+      label: item.label,
+      showValueLabel,
+      color: item.color,
+    };
   });
 
   return {
@@ -323,8 +354,8 @@ export function drawBarChart(
   drawGridAndAxes(ctx, layout, colors, opts.yAxisLabel, opts.xAxisLabel);
 
   const barWidth = 24;
-  ctx.fillStyle = colors.bar;
   for (const bar of bars) {
+    ctx.fillStyle = bar.color ?? colors.bar;
     const x = originX + bar.centerX - barWidth / 2;
     const yTop = originY + chartHeight - bar.height;
     roundRectTop(ctx, x, yTop, barWidth, bar.height, 4);
